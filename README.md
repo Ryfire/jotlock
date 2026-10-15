@@ -2,12 +2,43 @@
 
 **Capture notes from the Android lock screen — jot it, lock it.**
 
-JotLock is a lightweight note app for Android whose superpower is capture speed: a
-persistent *Quick note* notification puts capture wherever you are — a **Write note**
-button on the lock screen, an inline **Jot** field in the shade while the phone is
-unlocked — so a thought can be captured in seconds, and after a lock-screen save the
-phone can **re-lock itself**.
-No accounts, no cloud, no internet permission: notes live entirely on the device.
+JotLock is a fast, no-nonsense notes app built around one idea: a thought should be
+captured in seconds, no matter what your phone is doing. A persistent **Quick note**
+notification gives you a **Write note** button on the lock screen, an inline **Jot**
+field in the shade, and per-note **reminders** that always play your sound but never
+clutter your lock screen.
+
+- **No unlocking required** — write and save notes straight from the lock screen
+- **Re-locks itself** — when you're done, the phone goes back to locked, instantly
+- **Private by design** — no accounts, no cloud, no internet permission. Notes never
+  leave the device.
+- **Free and open source** — inspect every line.
+
+Latest release: **v1.1.2** · Requires Android 7.0+
+
+---
+
+## Highlights
+
+### Capture from the lock screen
+Tap the jot pencil on the lock screen and start typing — notes save without
+unlocking, and the phone re-locks itself the moment you're done. Unlocking, finding
+an app, waiting for it to load: gone.
+
+### Capture from anywhere (inline Jot)
+While browsing any app, pull down the shade and tap **Jot** — a text field expands
+right there. Send, and you're back where you were. The note is saved; nothing on
+screen changes.
+
+### Reminders that stay out of the way
+Long-press any note → **Remind me…** — pick 10 minutes, 1 hour, tomorrow 9 AM, or
+any custom date and time. When it fires you get a heads-up with your sound
+(your choice, or none) and tapping it opens the note ready to edit. Reminder cards
+**never appear on the lock screen** — your jot button stays alone up there.
+
+### Backup in one tap
+Export all notes as JSON or readable text, import a JSON backup to merge (duplicates
+skipped) — handy for moving to a new phone.
 
 ---
 
@@ -15,241 +46,120 @@ No accounts, no cloud, no internet permission: notes live entirely on the device
 
 | Feature | What it does |
 |---|---|
-| **Lock screen capture** | A persistent *Quick note* notification lives in the shade; on the lock screen its **Write note** button opens a native note-entry screen. Survives reboots. |
-| **Inline capture ("Jot")** | While the device is unlocked, the notification's **Jot** action expands a text field *directly in the shade* — type and send without opening any screen, even while you're inside another app. The card adapts automatically: **Write note** on the lock screen, **Jot + Save note** in the unlocked shade. |
-| **Auto re-lock after saving** | Three user-selectable behaviors: **Lock the phone** (instant re-lock + screen off, via device admin — see [*Why device admin?*](#why-device-admin)), **Show the home screen**, or **Stay on the confirmation**. Per-save override buttons on the confirmation screen. |
-| **Pin notes** | Long-press a note → Pin. Pinned notes float to the top of the list with a pin badge. |
-| **Search** | Case-insensitive text search from the app bar, layered on pinned-first ordering. |
-| **Copy to clipboard** | Copy icon on every note (and in the action sheet) with a "Copied" confirmation. Tap a note to edit. |
-| **Share in** | JotLock appears in the Android **share sheet** and the **text-selection menu** anywhere — incoming text opens the editor pre-filled. |
-| **Share out** | Long-press a note → Share to send its text anywhere. |
-| **Export / import backup** | JSON export (via the share sheet) and merge-import that skips duplicates — doubles as a device-migration backup. Plus a human-readable **text export** (timestamps, pinned flags). |
-| **Notification toggle** | Don't want the persistent notification? Turn it off in the app; it comes back on the next launch or reboot if re-enabled. |
-| **Polish** | Material 3 light/dark, adaptive launcher icon + Android 13 themed icon, edit dialog for every note. |
+| **Lock screen capture** | A persistent *Quick note* notification puts a **Write note** button on the lock screen. Survives reboots. |
+| **Inline capture (Jot)** | While unlocked, the notification's **Jot** action expands a text field directly in the shade — even inside other apps. |
+| **Auto re-lock after saving** | Three options: **Lock the phone**, **Show the home screen**, or **Stay on the confirmation**. |
+| **Reminders** | One-shot reminders per note — presets or custom date/time. Heads-up banner with your sound; opens the note pre-filled on tap. |
+| **Reminder sound** | Pick any system notification sound globally, or mark individual reminders silent. |
+| **Background keep-alive** | One-time "Allow" makes the capture card and reminders reliable through doze. |
+| **Pin notes** | Pinned notes float to the top with a badge. |
+| **Search** | Case-insensitive search over all notes. |
+| **Copy / share** | Copy any note to the clipboard, or share it out. JotLock also accepts text sent **in** from the share sheet and the text-selection menu. |
+| **Export / import** | JSON backup (share it anywhere) and a readable text export. |
+| **Notification toggle** | Don't want the persistent card? Turn it off in settings; it returns on next launch. |
+| **Polish** | Material 3, light/dark, adaptive + themed icons. |
 
 ---
+
+## Getting started
+
+1. **Install** the APK from [Releases](../../releases) and open JotLock.
+2. **Allow notifications** when Android asks (Android 13+).
+3. Optional — for *Lock the phone* mode: pick it in Settings and activate the
+   device-admin prompt Android shows (see below).
+4. Recommended — Settings → **Keep running in background** → **Allow**, so the
+   capture card and reminders stay reliable.
 
 ## How to use
 
-### From the lock screen (the whole point)
+### From the lock screen
 
-1. JotLock keeps a persistent **Quick note** notification in the shade.
-2. On the lock screen, tap the notification or its **Write note** button
-   (same destination).
-3. The note-entry screen appears. On some devices it renders directly over the
-   lock screen; on others Android asks for a quick unlock first (its security
-   rule for third-party apps) — either way, type your note.
-4. Tap **Save note**. Depending on your *After saving* setting the phone either
-   locks instantly, shows the home screen, or waits for the screen to time out.
-   The next wake-up is always the lock screen — the app never pops open.
+1. Tap the jot pencil (or the **Write note** button on the Quick note card).
+2. Type your note, tap **Save note**.
+3. Depending on your *After saving* setting the phone locks instantly, goes home,
+   or stays put — the next wake is always the lock screen, never the app.
 
-### While browsing (inline "Jot")
+> If your phone uses a PIN/fingerprint, Android may ask for a quick unlock before
+> showing the capture screen — that's an OS security rule for all apps, not a
+> JotLock setting.
 
-1. With the phone unlocked, pull down the notification shade (from the home
-   screen or inside any app).
-2. Tap **Jot** on the Quick note notification — a text field expands in place.
-3. Type and hit send. The note is saved with a "Note saved ✓" toast; you stay
-   exactly where you were. The *After saving* setting does not apply here
-   (no screen was opened, so nothing needs to be dismissed or re-locked).
+### From the shade (inline Jot)
 
-The card is kept in sync with the lock state: **Write note** while locked,
-**Jot + Save note** while unlocked.
+1. Pull down the notification shade anywhere — home screen or inside any app.
+2. Tap **Jot** on the Quick note card, type, send.
+3. Done — you stay exactly where you were.
+
+### Reminders
+
+1. **Long-press a note** (or tap it → menu) → **Remind me…**
+2. Pick a preset or *Pick date & time…*, choose whether it should play your sound,
+   and tap **Set reminder**.
+3. When it fires, tap the card to edit the note. One-shot: it fires once and clears.
+
+The reminder sound itself (what "play sound" uses) is set in Settings →
+**Reminder sound**.
 
 ### In the app
 
-- **Tap a note** — open it in the editor (edit, Save).
-- **Copy icon** — copy the note's text to the clipboard.
-- **Delete icon** — remove a note (with confirmation).
-- **Long-press a note** — action sheet: *Edit · Pin/Unpin · Copy · Share · Delete*.
-- **Magnifier** — search notes.
-- **＋ New note** — add a note normally.
-
-### Settings (gear icon)
-
-| Setting | Options |
-|---|---|
-| After saving a note from the lock screen | **Lock the phone** — requires one-time device-admin activation · **Show the home screen** · **Stay on the confirmation** |
-| Export notes (JSON) | Writes the full note store to a `.json` file and hands it to the share sheet |
-| Export notes (text) | Writes all notes as a readable `.txt` (timestamps, pinned flags, display order) |
-| Import notes (JSON) | Picks a `.json` backup and merges it in (existing note ids are skipped) |
-| Clear all notes | Permanently deletes every note after a confirmation dialog |
+- **Tap a note** to edit · **Copy** / **Delete** icons on each note
+- **Long-press** for the full menu: *Edit · Pin · Copy · Remind me… · Share · Delete*
+- **Magnifier** to search · **＋ New note** to add
 
 ---
 
-## How it works
+## Settings
 
-Flutter can't render UI on the lock screen, so the capture path is fully native
-Kotlin while the management UI is Flutter. Both sides talk to **one source of
-truth**: a JSON array in `SharedPreferences`.
-
-```
-Lock screen ── tap notification ──► QuickNoteActivity (showWhenLocked)
-Unlocked shade ── inline reply ──► QuickNoteReceiver
-                                        │ saves
-                                        ▼
-                              NoteStore (SharedPreferences)
-                                        ▲            ▲
-BootReceiver ── re-posts ─► NotificationHelper      Flutter app
-                                           (MainActivity MethodChannel)
-```
-
-| File | Role |
+| Setting | What it's for |
 |---|---|
-| `lib/main.dart` | Notes list UI: search, pin, copy, share, editor, settings |
-| `lib/note.dart` | Note model + `filterAndSort` (pinned first, newest first) |
-| `lib/notes_repository.dart` | MethodChannel wrapper (`jotlock/notes`) |
-| `MainActivity.kt` | Channel bridge, share-intent capture, admin activation |
-| `QuickNoteActivity.kt` | The lock-screen capture screen (`showWhenLocked`, insets-safe) |
-| `NotificationHelper.kt` | Persistent notification, channel, enabled toggle, lock-state-aware card variants (Write note ↔ Jot), screen-state listener |
-| `QuickNoteReceiver.kt` | Saves inline notes typed in the notification and re-posts it |
-| `NoteStore.kt` | JSON CRUD, pin, merge-import |
-| `BootReceiver.kt` | Re-posts the notification after reboot |
-| `LockAdminReceiver.kt` | Device admin — only policy used: `force-lock` (for lock-after-save) |
-| `AppSettings.kt` | After-save behavior setting |
+| After saving a note from the lock screen | Lock the phone · Show the home screen · Stay on the confirmation |
+| Reminder sound | The sound sounded reminders play — system picker, Silent included |
+| Keep running in background | One-time allow so the card + reminders survive battery doze |
+| Export / Import | JSON backup round-trip, plus a readable text export |
+| Clear all notes | Wipes everything (after confirmation) |
 
 ---
 
-## Building
+## Privacy & permissions
 
-**Requirements:** Flutter SDK (developed on 3.47.x) with Android tooling,
-compile SDK 37, min SDK 24 (Android 7.0+), Java 17.
+JotLock is offline-only. There is **no INTERNET permission**, so it cannot send
+anything anywhere — notes physically have nowhere to go but your device.
+
+| Permission | Why |
+|---|---|
+| Notifications | The Quick note card and reminder alerts. |
+| Exact alarms | Reminders fire on time even after a reboot or overnight idle. |
+| Background (battery) | Optional one-time allow so capture/reminders survive doze. |
+| Device admin (force-lock) | Optional, only for *Lock the phone* mode — see below. |
+
+### About device admin
+
+*Lock the phone* after saving needs Android's only sanctioned way for an app to
+re-lock the screen: the `force-lock` device-admin policy. That is the **single
+policy** JotLock declares — Android itself forbids an admin from using anything it
+hasn't declared, so wiping data, changing passwords, camera access and the rest are
+structurally out of reach. Activation is opt-in (only when you pick that mode) and
+revocable anytime via **Settings → Security → Device admin apps → JotLock**.
+
+---
+
+## Good to know
+
+- The lock-screen card needs your phone's *Lock screen → Notifications* set to
+  **Show** (the default).
+- A few phone skins render inline reply fields inconsistently; the plain buttons
+  (**Write note** / **Save note**) work everywhere.
+- Notes are capped at 500 (oldest trimmed) and 4,000 characters each.
+- While device admin is active, Android blocks uninstalling until you deactivate it
+  (a safety rule, not JotLock lock-in).
+
+---
+
+## Building from source
+
+Flutter + Android SDK; see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup,
+architecture and release signing.
 
 ```bash
 flutter pub get
-flutter run                      # debug on a connected device
-flutter test                     # unit + widget tests
-flutter analyze
-flutter build apk --debug        # quick side-load
-flutter build apk --release      # signed release (47.9 MB at v1.0.0)
+flutter run
 ```
-
-### Release signing
-
-`app-release.apk` is signed with `android/app/jotlock.keystore`. The keystore
-credentials live in `android/key.properties`:
-
-```
-storePassword=...
-keyPassword=...
-keyAlias=jotlock
-storeFile=jotlock.keystore
-```
-
-Keep the keystore **and** `key.properties` safe — losing them means you can't
-update the app with the same identity. To regenerate from scratch:
-
-```bash
-keytool -genkeypair -v -keystore android/app/jotlock.keystore \
-  -storetype PKCS12 -alias jotlock -keyalg RSA -keysize 2048 \
-  -validity 10950 -dname "CN=JotLock, O=Ryfire, C=US"
-```
-
-If `key.properties` is absent, release builds fall back to debug signing so
-CI-style checkouts still build.
-
----
-
-## Why device admin?
-
-Device admin is Android's official mechanism for granting "control the device"
-privileges — normally the territory of corporate MDM software — so it's fair to ask
-what a notes app is doing with it. The honest answer: **exactly one thing, by design,
-and the OS itself enforces the limit.**
-
-### The one thing: locking the screen
-
-After you save a note from the lock screen, the *Lock the phone* mode calls
-`DevicePolicyManager.lockNow()` — the programmatic equivalent of pressing the power
-button — so the phone is back on the lock screen the instant you're done. Android
-provides **no ordinary API** for a third-party app to lock the screen; declaring the
-`force-lock` device-admin policy is the only sanctioned way to get it. (The workarounds
-you'll see in "screen off" apps — AccessibilityService hooks — are far more invasive:
-they can read screen content. Device admin with `force-lock` is the *least* privileged
-option, not the most.)
-
-### Why one policy means one policy
-
-Admin capabilities must be **declared in the app's manifest**. JotLock's
-`android/app/src/main/res/xml/device_admin.xml` contains exactly this:
-
-```xml
-<uses-policies>
-    <force-lock />
-</uses-policies>
-```
-
-That's it — the whole file. Android enforces this list itself: a device admin cannot
-exercise a policy it hasn't declared. So the things device admins are *famous for* are
-out of reach for JotLock, structurally:
-
-- ✗ Factory-reset or wipe your data
-- ✗ Read, set, or change your screen-lock password
-- ✗ Enforce password rules or force a password change
-- ✗ Disable the camera or monitor it
-- ✗ Restrict lock-screen features, apps, or anything else
-
-And two independent safeguards on top:
-
-1. **No `INTERNET` permission** — JotLock cannot talk to the network at all. There is
-   nowhere for any data to go, whatever happened. Notes never leave the device.
-2. **Activation is opt-in and visible** — the admin is only requested when you pick
-   *Lock the phone* in settings, and Android shows its own system screen listing the
-   policies being granted before you confirm.
-
-### It's optional, and easy to revoke
-
-- Only the *Lock the phone* after-save mode needs it. **Show the home screen** and
-  **Stay on the confirmation** work with no admin at all.
-- To revoke: **Settings → Security → Device admin apps → JotLock → Deactivate**.
-- One side effect worth knowing, because it's a *feature*: Android refuses to uninstall
-  an app while it's an active device admin. A hostile app (or a curious toddler)
-  can't silently remove your re-lock setup — you must deactivate first, then uninstall
-  normally. JotLock adds no extra lock-in beyond that Android rule.
-
----
-
-## Permissions (and why)
-
-| Permission | Purpose |
-|---|---|
-| `POST_NOTIFICATIONS` | Shows the persistent Quick note notification (Android 13+ runtime prompt). |
-| `RECEIVE_BOOT_COMPLETED` | Re-posts the notification after a reboot. |
-| Device admin (`force-lock`) | Lets the app call `lockNow()` to re-lock the phone after a lock-screen save — nothing else. Optional; see [*Why device admin?*](#why-device-admin) for exactly what is (not) granted. |
-| `ACTION_SEND` / `ACTION_PROCESS_TEXT` filters | Make JotLock a share-sheet and text-selection target (no data leaves the device). |
-
----
-
-## Caveats worth knowing
-
-- **Secure lock screens:** Android may require a quick unlock before showing the
-  capture screen over a PIN/fingerprint keyguard. That's enforced by the OS for
-  third-party apps; devices that allow over-keyguard rendering get the
-  no-auth flow automatically.
-- **OEM skins:** a few launchers render inline reply inconsistently on ongoing
-  notifications — the plain button (**Write note** / **Save note**) remains as the
-  reliable fallback everywhere.
-- **Inline Jot availability:** the swap between the locked and unlocked card
-  variants happens while the app's process is alive. If Android has killed
-  the process in the background, the last posted variant stays — e.g. the
-  shade may briefly lack **Jot** after a long lock until you open the app
-  (or a note is saved) again. **Write note / Save note** are always present.
-- **Uninstalling while device admin is active:** Android blocks uninstall until
-  you deactivate it (Settings → Security → Device admin apps → JotLock). That's
-  an Android safety rule, not a JotLock lock-in — see
-  [*Why device admin?*](#why-device-admin).
-- **Lock screen visibility:** the phone's *Lock screen → Notifications* setting
-  must be "Show" (the default) for the capture action to appear while locked.
-- Notes are capped at **500** (oldest auto-trimmed) and 4,000 characters each.
-- OEM skins (Motorola, Samsung, Xiaomi…) vary in how they treat lock screen
-  notifications — test on your device.
-
----
-
-## Testing
-
-```bash
-flutter test
-```
-
-Covers the display-ordering/filtering logic (`filterAndSort`) and a widget smoke
-test that mocks the native channel.
