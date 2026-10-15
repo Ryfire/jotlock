@@ -36,10 +36,21 @@ object NoteStore {
                     "text" to note.optString("text"),
                     "createdAt" to note.optLong("createdAt"),
                     "pinned" to note.optBoolean("pinned", false),
+                    "reminderAt" to note.optLong("reminderAt", 0L),
                 )
             )
         }
         return out
+    }
+
+    /** Returns the note with [id], or null when it does not exist. */
+    fun getNote(context: Context, id: String): JSONObject? {
+        val notes = getNotes(context)
+        for (i in 0 until notes.length()) {
+            val note = notes.optJSONObject(i) ?: continue
+            if (note.optString("id") == id) return note
+        }
+        return null
     }
 
     fun addNote(context: Context, text: String): Boolean {
@@ -89,6 +100,24 @@ object NoteStore {
         return false
     }
 
+    /**
+     * Stores the reminder target time on the note. A value <= 0 removes the
+     * field (no reminder). Scheduling/canceling the actual alarm lives in
+     * ReminderScheduler — this only persists the state.
+     */
+    fun setReminderAt(context: Context, id: String, atMillis: Long): Boolean {
+        val notes = getNotes(context)
+        for (i in 0 until notes.length()) {
+            val note = notes.optJSONObject(i) ?: continue
+            if (note.optString("id") == id) {
+                if (atMillis > 0) note.put("reminderAt", atMillis)
+                else note.remove("reminderAt")
+                return saveNotes(context, notes)
+            }
+        }
+        return false
+    }
+
     /** Deletes every note. Returns true; other settings are untouched. */
     fun clearAll(context: Context): Boolean {
         context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
@@ -125,13 +154,16 @@ object NoteStore {
             ids.add(id)
             val createdAt =
                 if (item.has("createdAt")) item.optLong("createdAt", now) else now
-            notes.put(
-                JSONObject()
-                    .put("id", id)
-                    .put("text", text)
-                    .put("createdAt", createdAt)
-                    .put("pinned", item.optBoolean("pinned", false))
-            )
+            val reminder = item.optLong("reminderAt", 0L)
+            val note = JSONObject()
+                .put("id", id)
+                .put("text", text)
+                .put("createdAt", createdAt)
+                .put("pinned", item.optBoolean("pinned", false))
+            // Only carry future reminders across an import; past ones would
+            // otherwise fire immediately on the importing device.
+            if (reminder > now) note.put("reminderAt", reminder)
+            notes.put(note)
             added++
         }
         if (added > 0) saveNotes(context, notes)

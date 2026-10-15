@@ -31,6 +31,11 @@ import androidx.core.view.WindowInsetsCompat
  */
 class QuickNoteActivity : Activity() {
 
+    companion object {
+        /** Extra: edit an existing note (opened from a reminder tap). */
+        const val EXTRA_EDIT_NOTE_ID = "edit_note_id"
+    }
+
     private var screenOffRegistered = false
 
     private val screenOffReceiver = object : BroadcastReceiver() {
@@ -47,6 +52,9 @@ class QuickNoteActivity : Activity() {
 
     private fun isAdminActive(): Boolean = devicePolicyManager.isAdminActive(adminComponent)
 
+    /** Non-null when launched from a reminder tap: the note being edited. */
+    private var editNoteId: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -62,6 +70,15 @@ class QuickNoteActivity : Activity() {
         setContentView(R.layout.activity_quick_note)
 
         val input = findViewById<EditText>(R.id.note_input)
+        // Reminder taps open in edit mode: pre-fill with the note's current
+        // text; saving updates that note instead of creating a new one.
+        editNoteId = intent?.getStringExtra(EXTRA_EDIT_NOTE_ID)
+        if (editNoteId != null) {
+            val existing = NoteStore.getNote(this, editNoteId!!)
+                ?.optString("text").orEmpty()
+            input.setText(existing)
+            input.setSelection(existing.length)
+        }
         input.requestFocus()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -89,7 +106,9 @@ class QuickNoteActivity : Activity() {
                 Toast.makeText(this, "Nothing to save", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            NoteStore.addNote(this, text)
+            val id = editNoteId
+            if (id != null) NoteStore.updateNote(this, id, text)
+            else NoteStore.addNote(this, text)
             onNoteSaved()
         }
         findViewById<Button>(R.id.cancel_button).setOnClickListener { finish() }

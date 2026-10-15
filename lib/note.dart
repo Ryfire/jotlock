@@ -5,12 +5,23 @@ class Note {
   final DateTime createdAt;
   final bool pinned;
 
+  /// Epoch millis of the one-shot reminder on this note, or 0 when none is
+  /// set. Mirrors the native `reminderAt` field in NoteStore.
+  final int reminderAt;
+
   const Note({
     required this.id,
     required this.text,
     required this.createdAt,
     this.pinned = false,
+    this.reminderAt = 0,
   });
+
+  bool get hasReminder => reminderAt > 0;
+
+  /// The reminder target as a DateTime; only meaningful when [hasReminder].
+  DateTime get reminderTime =>
+      DateTime.fromMillisecondsSinceEpoch(reminderAt);
 
   factory Note.fromMap(Map<dynamic, dynamic> map) => Note(
         id: map['id'] as String? ?? '',
@@ -19,6 +30,7 @@ class Note {
           (map['createdAt'] as num?)?.toInt() ?? 0,
         ),
         pinned: map['pinned'] as bool? ?? false,
+        reminderAt: (map['reminderAt'] as num?)?.toInt() ?? 0,
       );
 }
 
