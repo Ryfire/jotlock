@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- JotLock: white padlock + pencil slotted into the cut corner, on an
+         indigo gradient. Geometry lives in a 1024x1024 design space; the
+         group maps it into the 108dp viewport and keeps it inside the 66dp
+         safe zone. Regenerate with: python tool/make_icon.py -->
+    <group
+        android:scaleX="0.082671"
+        android:scaleY="0.082671"
+        android:translateX="8.98"
+        android:translateY="1.23">
+        <!-- shackle -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M330,578 L330,520 A130,130 0 0 1 590,520 L590,578 L534,578 L534,520 A74,74 0 0 0 386,520 L386,578 Z" />
+        <!-- body with punched keyhole (even-odd) -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M352,520 H568 A72,72 0 0 1 640,592 V705.15 L515.15,830 H352 A72,72 0 0 1 280,758 V592 A72,72 0 0 1 352,520 Z M418,634 A34,34 0 1 0 486,634 A34,34 0 1 0 418,634 Z M440,668 L464,668 L468,706 L436,706 Z" />
+        <!-- pencil badge -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M744.15,620.8 L575.85,789.09 L543.33,886.67 L640.91,854.15 L809.2,685.85 Z" />
+    </group>
+</vector>

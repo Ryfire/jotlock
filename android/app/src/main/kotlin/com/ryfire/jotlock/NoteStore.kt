@@ -1,0 +1,150 @@
+package com.ryfire.jotlock
+
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * Single source of truth for notes. Lives in native SharedPreferences so the
+ * lock screen capture screen and receivers can read/write it without the
+ * Flutter engine running. Display ordering (pinned first, then newest) is
+ * applied on the Dart side.
+ */
+object NoteStore {
+    private const val PREFS_FILE = "jotlock"
+    private const val KEY_NOTES = "notes"
+    private const val MAX_NOTES = 500
+
+    fun getNotes(context: Context): JSONArray {
+        val raw = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            .getString(KEY_NOTES, "[]") ?: "[]"
+        return try {
+            JSONArray(raw)
+        } catch (_: Exception) {
+            JSONArray()
+        }
+    }
+
+    fun notesAsMaps(context: Context): List<Map<String, Any?>> {
+        val notes = getNotes(context)
+        val out = ArrayList<Map<String, Any?>>(notes.length())
+        for (i in 0 until notes.length()) {
+            val note = notes.optJSONObject(i) ?: continue
+            out.add(
+                mapOf(
+                    "id" to note.optString("id"),
+                    "text" to note.optString("text"),
+                    "createdAt" to note.optLong("createdAt"),
+                    "pinned" to note.optBoolean("pinned", false),
+                )
+            )
+        }
+        return out
+    }
+
+    fun addNote(context: Context, text: String): Boolean {
+        val existing = getNotes(context)
+        val note = JSONObject()
+            .put("id", System.currentTimeMillis().toString())
+            .put("text", text)
+            .put("createdAt", System.currentTimeMillis())
+            .put("pinned", false)
+        val out = JSONArray().put(note)
+        for (i in 0 until existing.length()) out.put(existing.get(i))
+        return saveNotes(context, out)
+    }
+
+    fun updateNote(context: Context, id: String, text: String): Boolean {
+        val notes = getNotes(context)
+        for (i in 0 until notes.length()) {
+            val note = notes.optJSONObject(i) ?: continue
+            if (note.optString("id") == id) {
+                note.put("text", text)
+                return saveNotes(context, notes)
+            }
+        }
+        return false
+    }
+
+    fun deleteNote(context: Context, id: String): Boolean {
+        val notes = getNotes(context)
+        val out = JSONArray()
+        var found = false
+        for (i in 0 until notes.length()) {
+            val note = notes.optJSONObject(i) ?: continue
+            if (note.optString("id") == id) found = true else out.put(note)
+        }
+        return if (found) saveNotes(context, out) else false
+    }
+
+    fun setPinned(context: Context, id: String, pinned: Boolean): Boolean {
+        val notes = getNotes(context)
+        for (i in 0 until notes.length()) {
+            val note = notes.optJSONObject(i) ?: continue
+            if (note.optString("id") == id) {
+                note.put("pinned", pinned)
+                return saveNotes(context, notes)
+            }
+        }
+        return false
+    }
+
+    /** Deletes every note. Returns true; other settings are untouched. */
+    fun clearAll(context: Context): Boolean {
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_NOTES)
+            .apply()
+        return true
+    }
+
+    /**
+     * Merges a JSON array of notes into the store, skipping notes whose id
+     * already exists. Returns the number of notes added.
+     */
+    fun importNotes(context: Context, jsonText: String): Int {
+        val incoming = try {
+            JSONArray(jsonText)
+        } catch (_: Exception) {
+            return 0
+        }
+        val notes = getNotes(context)
+        val ids = HashSet<String>()
+        for (i in 0 until notes.length()) {
+            val note = notes.optJSONObject(i) ?: continue
+            ids.add(note.optString("id"))
+        }
+        var added = 0
+        val now = System.currentTimeMillis()
+        for (i in 0 until incoming.length()) {
+            val item = incoming.optJSONObject(i) ?: continue
+            val text = item.optString("text").trim()
+            if (text.isEmpty()) continue
+            var id = item.optString("id")
+            if (id.isEmpty() || ids.contains(id)) id = "${now + added}"
+            ids.add(id)
+            val createdAt =
+                if (item.has("createdAt")) item.optLong("createdAt", now) else now
+            notes.put(
+                JSONObject()
+                    .put("id", id)
+                    .put("text", text)
+                    .put("createdAt", createdAt)
+                    .put("pinned", item.optBoolean("pinned", false))
+            )
+            added++
+        }
+        if (added > 0) saveNotes(context, notes)
+        return added
+    }
+
+    private fun saveNotes(context: Context, notes: JSONArray): Boolean {
+        val trimmed = JSONArray()
+        for (i in 0 until minOf(notes.length(), MAX_NOTES)) trimmed.put(notes.get(i))
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_NOTES, trimmed.toString())
+            .apply()
+        return true
+    }
+}

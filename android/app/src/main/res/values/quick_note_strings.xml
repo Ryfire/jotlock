@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="quick_note_title">Quick note</string>
+    <string name="quick_note_hint">Type a note…</string>
+    <string name="quick_note_cancel">Cancel</string>
+    <string name="quick_note_save">Save note</string>
+    <string name="quick_note_saved">✓ Note saved</string>
+    <string name="quick_note_saved_hint">Pick where to go next — or just let the screen turn off.</string>
+    <string name="quick_note_lock">Lock screen</string>
+    <string name="quick_note_home">Go home</string>
+    <string name="quick_note_lock_disabled_hint">To lock from here, enable "Lock phone after saving" in the app settings and activate device admin.</string>
+</resources>
