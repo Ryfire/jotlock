@@ -211,12 +211,13 @@ object NotificationHelper {
      */
     fun currentReminderChannelId(context: Context): String {
         ensureReminderChannels(context)
-        return "note_reminders_v$reminderChannelVersion"
+        return soundedChannelId(context)
     }
 
     const val REMINDER_SILENT_CHANNEL_ID = "note_reminders_silent"
 
-    private var reminderChannelVersion = 1
+    private fun soundedChannelId(context: Context): String =
+        "note_reminders_v${AppSettings.reminderChannelVersion(context)}"
 
     fun ensureReminderChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -239,8 +240,18 @@ object NotificationHelper {
         }
         nm.createNotificationChannel(silent)
 
-        val sounded = NotificationChannel(
-            "note_reminders_v$reminderChannelVersion",
+        // Recreate when missing: a versioned id can be absent after a
+        // sound change bumped the pref from another process, or when the
+        // channel was deleted by an earlier applyReminderSound.
+        val id = soundedChannelId(context)
+        if (nm.getNotificationChannel(id) == null) {
+            nm.createNotificationChannel(buildSoundedChannel(context, id))
+        }
+    }
+
+    private fun buildSoundedChannel(context: Context, id: String): NotificationChannel =
+        NotificationChannel(
+            id,
             "Note reminders",
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
@@ -256,8 +267,6 @@ object NotificationHelper {
             enableVibration(true)
             lockscreenVisibility = NotificationCompat.VISIBILITY_SECRET
         }
-        nm.createNotificationChannel(sounded)
-    }
 
     /** Stored URI, or the system default notification sound when unset. */
     fun resolveReminderSoundUri(context: Context): android.net.Uri? {
@@ -276,10 +285,45 @@ object NotificationHelper {
     fun applyReminderSound(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = notificationManager(context)
-        nm.deleteNotificationChannel("note_reminders_v$reminderChannelVersion")
-        reminderChannelVersion++
+        nm.deleteNotificationChannel(soundedChannelId(context))
+        val next = AppSettings.reminderChannelVersion(context) + 1
+        AppSettings.setReminderChannelVersion(context, next)
         ensureReminderChannels(context)
-        Log.d(TAG, "reminder sound applied, channel v$reminderChannelVersion")
+        Log.d(TAG, "reminder sound applied, channel v$next")
+    }
+
+    /**
+     * Runs when the app starts: recreates the sounded channel if an older
+     * build left it without the SECRET lock-screen visibility, and deletes
+     * orphaned older versions so user-facing channel lists stay clean.
+     */
+    fun healReminderChannels(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        ensureReminderChannels(context)
+        val nm = notificationManager(context)
+        val id = soundedChannelId(context)
+        val existing = nm.getNotificationChannel(id)
+        if (existing != null &&
+            existing.lockscreenVisibility != Notification.VISIBILITY_SECRET
+        ) {
+            nm.deleteNotificationChannel(id)
+            AppSettings.setReminderChannelVersion(
+                context,
+                AppSettings.reminderChannelVersion(context) + 1
+            )
+            ensureReminderChannels(context)
+        }
+        val current = AppSettings.reminderChannelVersion(context)
+        val staleIds = nm.notificationChannels
+            .mapNotNull { channel ->
+                Regex("^note_reminders_v(\\d+)$")
+                    .matchEntire(channel.id)
+                    ?.groupValues?.get(1)
+                    ?.toIntOrNull()
+            }
+            .filter { it != current }
+            .map { "note_reminders_v$it" }
+        for (staleId in staleIds) nm.deleteNotificationChannel(staleId)
     }
 
     /** Human-readable name of the current reminder sound ("Silent" etc). */

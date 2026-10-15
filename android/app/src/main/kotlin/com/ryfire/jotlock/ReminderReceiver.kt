@@ -65,9 +65,10 @@ class ReminderReceiver : BroadcastReceiver() {
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
-                // No setVisibility: the channel's SECRET governs — the
-                // card must stay off the lock screen (a notification's own
-                // visibility would override the channel default).
+                // Explicit SECRET, re-asserting the channel: cards stay off
+                // the lock screen even when the channel was created by an
+                // older build without a lockscreenVisibility set.
+                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
                 .setContentIntent(openNote)
                 .setAutoCancel(true)
                 .setGroup(GROUP_KEY)
@@ -91,6 +92,7 @@ class ReminderReceiver : BroadcastReceiver() {
                     .setGroupSummary(true)
                     // Only the children alert; the summary stays silent.
                     .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+                    .setVisibility(NotificationCompat.VISIBILITY_SECRET)
                     .setColor(0xFF3F51B5.toInt())
                     .setContentIntent(openNote)
                     .setAutoCancel(true)

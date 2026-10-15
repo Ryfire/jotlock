@@ -915,6 +915,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             const Divider(),
             _ReminderSoundTile(repo: widget.repo),
             const Divider(),
+            _BackgroundTile(repo: widget.repo),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.file_download_outlined),
               title: const Text('Export notes (JSON)'),
@@ -994,6 +996,59 @@ class _ReminderSoundTileState extends State<_ReminderSoundTile> {
       title: const Text('Reminder sound'),
       subtitle: Text(_title),
       onTap: _pick,
+    );
+  }
+}
+
+/// Settings row for background keep-alive: shows the battery-optimization
+/// exemption state and opens the system allow-dialog when missing.
+class _BackgroundTile extends StatefulWidget {
+  const _BackgroundTile({required this.repo});
+  final NotesRepository repo;
+
+  @override
+  State<_BackgroundTile> createState() => _BackgroundTileState();
+}
+
+class _BackgroundTileState extends State<_BackgroundTile> {
+  bool _exempt = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final exempt = await widget.repo.isBatteryExempt();
+      if (!mounted) return;
+      setState(() => _exempt = exempt);
+    } catch (_) {}
+  }
+
+  Future<void> _request() async {
+    try {
+      await widget.repo.requestBatteryExempt();
+      await _load();
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.battery_saver_outlined),
+      title: const Text('Keep running in background'),
+      subtitle: Text(
+        _exempt
+            ? 'Battery optimization is off — the lock screen card and '
+                'reminders stay live.'
+            : 'Tap to allow JotLock to keep running in the background.',
+      ),
+      onTap: _exempt ? null : _request,
+      trailing: _exempt
+          ? const Icon(Icons.check_circle_outline)
+          : const Icon(Icons.chevron_right),
     );
   }
 }

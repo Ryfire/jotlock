@@ -17,6 +17,7 @@ object AppSettings {
     private const val PREFS_FILE = "jotlock"
     private const val KEY_AFTER_SAVE = "after_save_action"
     private const val KEY_REMINDER_SOUND = "reminder_sound_uri"
+    private const val KEY_REMINDER_CHANNEL_VERSION = "reminder_channel_version"
 
     const val AFTER_SAVE_WAIT = "wait"
     const val AFTER_SAVE_LOCK = "lock"
@@ -31,6 +32,18 @@ object AppSettings {
         context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_REMINDER_SOUND, uri)
+            .apply()
+    }
+
+    /** Version suffix of the active sounded reminder channel. */
+    fun reminderChannelVersion(context: Context): Int =
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            .getInt(KEY_REMINDER_CHANNEL_VERSION, 1)
+
+    fun setReminderChannelVersion(context: Context, version: Int) {
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_REMINDER_CHANNEL_VERSION, version)
             .apply()
     }
 

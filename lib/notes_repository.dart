@@ -55,6 +55,18 @@ class NotesRepository {
   Future<String> getReminderSoundTitle() async =>
       await _channel.invokeMethod<String>('getReminderSoundTitle') ?? '';
 
+  /// Whether the app is already exempt from battery optimizations
+  /// (doze / App Standby), keeping the process and its lock-screen
+  /// service alive in the background.
+  Future<bool> isBatteryExempt() async {
+    return await _channel.invokeMethod<bool>('isBatteryExempt') ?? false;
+  }
+
+  /// Opens the system dialog asking to exempt the app from battery
+  /// optimizations. No-op when already exempt.
+  Future<void> requestBatteryExempt() =>
+      _channel.invokeMethod('requestBatteryExempt');
+
   /// Note id from a tapped reminder notification, or null. Consuming the
   /// value clears it.
   Future<String?> takePendingOpenNoteId() =>

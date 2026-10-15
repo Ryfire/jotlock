@@ -3,7 +3,10 @@ package com.ryfire.jotlock
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -36,12 +39,19 @@ class MainActivity : FlutterActivity() {
         getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
     }
 
+    private val powerManager by lazy {
+        getSystemService(POWER_SERVICE) as PowerManager
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingIncomingText = extractIncomingText(intent)
         pendingOpenNoteId = intent?.getStringExtra(EXTRA_OPEN_NOTE_ID)
         // Keep the notification card in sync with lock state while we run.
         NotificationHelper.ensureScreenListener(this)
+        // Restore the reminder channels this build expects — older builds
+        // could leave them without the SECRET lock-screen visibility.
+        NotificationHelper.healReminderChannels(this)
         ensureLockStateService()
     }
 
@@ -284,6 +294,20 @@ class MainActivity : FlutterActivity() {
                         } else {
                             result.error("INVALID", "Unknown action", null)
                         }
+                    }
+                    "isBatteryExempt" ->
+                        result.success(
+                            powerManager.isIgnoringBatteryOptimizations(packageName)
+                        )
+                    "requestBatteryExempt" -> {
+                        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                            startActivity(
+                                Intent(
+                                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                                ).setData(Uri.parse("package:$packageName"))
+                            )
+                        }
+                        result.success(true)
                     }
                     "isDeviceAdminActive" ->
                         result.success(devicePolicyManager.isAdminActive(adminComponent))
