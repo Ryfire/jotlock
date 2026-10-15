@@ -67,10 +67,12 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Notes may have been saved from the lock screen while we were away,
-    // and share-sheet / text-selection launches may be waiting for us.
+    // share-sheet / text-selection launches may be waiting for us, and a
+    // fired reminder notification may have asked us to open a note.
     if (state == AppLifecycleState.resumed) {
       _reload();
       _consumeIncomingText();
+      _consumeOpenNoteRequest();
     }
   }
 
@@ -78,6 +80,22 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
     unawaited(_setupNotification());
     await _reload();
     await _consumeIncomingText();
+    await _consumeOpenNoteRequest();
+  }
+
+  /// Opens the note whose reminder notification the user tapped, if any.
+  Future<void> _consumeOpenNoteRequest() async {
+    try {
+      final id = await _repo.takePendingOpenNoteId();
+      if (id == null || !mounted) return;
+      Note? target;
+      for (final n in _notes) {
+        if (n.id == id) target = n;
+      }
+      if (target != null) await _edit(target);
+    } catch (_) {
+      // Native bridge unavailable (e.g. widget tests).
+    }
   }
 
   Future<void> _setupNotification() async {
@@ -203,6 +221,19 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
               onTap: () => Navigator.pop(sheetContext, 'copy'),
             ),
             ListTile(
+              leading: Icon(
+                note.hasReminder ? Icons.alarm_on_outlined : Icons.alarm_add,
+              ),
+              title: Text(note.hasReminder ? 'Edit reminder' : 'Remind me…'),
+              onTap: () => Navigator.pop(sheetContext, 'remind'),
+            ),
+            if (note.hasReminder)
+              ListTile(
+                leading: const Icon(Icons.alarm_off),
+                title: const Text('Cancel reminder'),
+                onTap: () => Navigator.pop(sheetContext, 'cancel_reminder'),
+              ),
+            ListTile(
               leading: const Icon(Icons.share_outlined),
               title: const Text('Share'),
               onTap: () => Navigator.pop(sheetContext, 'share'),
@@ -225,11 +256,61 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
         await _togglePin(note);
       case 'copy':
         await _copy(note);
+      case 'remind':
+        await _pickReminder(note);
+      case 'cancel_reminder':
+        await _cancelReminder(note);
       case 'share':
         await SharePlus.instance.share(ShareParams(text: note.text));
       case 'delete':
         await _delete(note);
     }
+  }
+
+  /// Opens the reminder picker; on a result, schedules or clears.
+  Future<void> _pickReminder(Note note) async {
+    final result = await showDialog<Object>(
+      context: context,
+      builder: (dialogContext) => _ReminderPickerDialog(
+        initial: note.hasReminder ? note.reminderTime : null,
+      ),
+    );
+    if (!mounted) return;
+    if (result is DateTime) {
+      try {
+        await _repo.setReminder(note.id, result);
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not set reminder — the time may have passed'),
+          ),
+        );
+        return;
+      }
+      await _reload();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Reminder set for '
+            '${MaterialLocalizations.of(context).formatShortDate(result)} · '
+            '${TimeOfDay.fromDateTime(result).format(context)}',
+          ),
+        ),
+      );
+    } else if (result == _ReminderPickerDialog.remove) {
+      await _cancelReminder(note);
+    }
+  }
+
+  Future<void> _cancelReminder(Note note) async {
+    await _repo.cancelReminder(note.id);
+    await _reload();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Reminder canceled')),
+    );
   }
 
   Future<void> _toggleNotification() async {
@@ -458,7 +539,24 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: Text(_formatDate(context, note.createdAt)),
+        subtitle: note.hasReminder
+            ? Row(
+                children: [
+                  Icon(
+                    Icons.alarm,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '${_formatDate(context, note.createdAt)} · reminds '
+                      '${_formatReminder(context, note.reminderTime)}',
+                    ),
+                  ),
+                ],
+              )
+            : Text(_formatDate(context, note.createdAt)),
         onTap: () => _edit(note),
         onLongPress: () => _showNoteActions(note),
         trailing: Row(
@@ -483,6 +581,16 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
   String _formatDate(BuildContext context, DateTime dt) {
     final loc = MaterialLocalizations.of(context);
     return '${loc.formatShortDate(dt)} · ${TimeOfDay.fromDateTime(dt).format(context)}';
+  }
+
+  /// Compact reminder display: omits the date when it is today.
+  String _formatReminder(BuildContext context, DateTime dt) {
+    final loc = MaterialLocalizations.of(context);
+    final now = DateTime.now();
+    final sameDay =
+        dt.year == now.year && dt.month == now.month && dt.day == now.day;
+    final time = TimeOfDay.fromDateTime(dt).format(context);
+    return sameDay ? time : '${loc.formatShortDate(dt)} · $time';
   }
 }
 
@@ -540,6 +648,145 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
         FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
+  }
+}
+
+/// Reminder picker: quick presets plus a custom date & time selection.
+/// Pops with a [DateTime] to set the reminder, [_ReminderPickerDialog.remove]
+/// to clear an existing one, or null to dismiss.
+class _ReminderPickerDialog extends StatefulWidget {
+  const _ReminderPickerDialog({this.initial});
+  final DateTime? initial;
+
+  /// Sentinel returned to clear the reminder.
+  static const String remove = 'remove';
+
+  @override
+  State<_ReminderPickerDialog> createState() => _ReminderPickerDialogState();
+}
+
+class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
+  DateTime? _selected;
+
+  // Computed once at open time so "10 minutes" is measured from then, and
+  // so groupValue comparisons stay stable across rebuilds.
+  late final Map<String, DateTime> _presets = {
+    'In 10 minutes': _withSecondsZeroed(
+      DateTime.now().add(const Duration(minutes: 10)),
+    ),
+    'In 1 hour': _withSecondsZeroed(
+      DateTime.now().add(const Duration(hours: 1)),
+    ),
+    'Tomorrow 9 AM': _tomorrowNine(),
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initial;
+  }
+
+  DateTime _tomorrowNine() {
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9);
+  }
+
+  Future<void> _pickCustom() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selected ?? now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: _selected != null && _isSameDay(_selected!, date)
+          ? TimeOfDay.fromDateTime(_selected!)
+          : TimeOfDay.now(),
+    );
+    if (time == null || !mounted) return;
+    setState(() {
+      _selected = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.initial == null ? 'Remind me' : 'Edit reminder'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RadioGroup<DateTime>(
+              groupValue: _selected,
+              onChanged: (dt) {
+                if (dt == null) return;
+                setState(() => _selected = _withSecondsZeroed(dt));
+              },
+              child: Column(
+                children: [
+                  for (final entry in _presets.entries)
+                    RadioListTile<DateTime>(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: Text(entry.key),
+                      subtitle: Text(_describe(entry.value)),
+                      value: entry.value,
+                    ),
+                ],
+              ),
+            ),
+            const Divider(),
+            OutlinedButton.icon(
+              onPressed: _pickCustom,
+              icon: const Icon(Icons.event_outlined),
+              label: Text(
+                _selected == null
+                    ? 'Pick date & time…'
+                    : 'Custom: ${_describe(_selected!)}',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        if (widget.initial != null)
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, _ReminderPickerDialog.remove),
+            child: const Text('Remove reminder'),
+          ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _selected == null
+              ? null
+              : () => Navigator.pop(context, _selected),
+          child: const Text('Set reminder'),
+        ),
+      ],
+    );
+  }
+
+  DateTime _withSecondsZeroed(DateTime dt) =>
+      DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute);
+
+  String _describe(DateTime dt) {
+    final loc = MaterialLocalizations.of(context);
+    final time = TimeOfDay.fromDateTime(dt).format(context);
+    return '${loc.formatShortDate(dt)} · $time';
   }
 }
 

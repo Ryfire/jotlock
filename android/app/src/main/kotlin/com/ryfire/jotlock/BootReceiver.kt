@@ -19,6 +19,9 @@ class BootReceiver : BroadcastReceiver() {
                     Intent(context, LockStateService::class.java)
                 )
             }
+            // Re-arm future note reminders; fire past-due ones immediately
+            // (they elapsed while the device was off).
+            ReminderScheduler.onBoot(context)
         }
     }
 }

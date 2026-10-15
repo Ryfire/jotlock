@@ -3,6 +3,12 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Exact alarms for note reminders: USE_EXACT_ALARM is auto-granted
+         (alarm-app use case) on 33+; SCHEDULE_EXACT_ALARM covers 31/32. -->
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <application
         android:label="JotLock"
         android:name="${applicationName}"
@@ -71,6 +77,11 @@
              Not exported: only our own PendingIntent can trigger it. -->
         <receiver
             android:name=".QuickNoteReceiver"
+            android:exported="false" />
+        <!-- Fired when a note reminder's alarm elapses. Not exported:
+             only our own AlarmManager PendingIntent can trigger it. -->
+        <receiver
+            android:name=".ReminderReceiver"
             android:exported="false" />
         <!-- Hosts the lock-state listener at foreground priority so the
              Quick note card can never go stale (e.g. an unlocked variant

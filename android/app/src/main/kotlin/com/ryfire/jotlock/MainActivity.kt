@@ -4,6 +4,7 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -11,8 +12,16 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
 
+    companion object {
+        /** Extra: note id to open, sent by fired reminder notifications. */
+        const val EXTRA_OPEN_NOTE_ID = "open_note_id"
+    }
+
     /** Text arriving via ACTION_SEND / ACTION_PROCESS_TEXT, waiting for Dart. */
     private var pendingIncomingText: String? = null
+
+    /** Note id to open after tapping a fired reminder notification. */
+    private var pendingOpenNoteId: String? = null
 
     private val adminComponent by lazy {
         ComponentName(this, LockAdminReceiver::class.java)
@@ -25,6 +34,7 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingIncomingText = extractIncomingText(intent)
+        pendingOpenNoteId = intent?.getStringExtra(EXTRA_OPEN_NOTE_ID)
         // Keep the notification card in sync with lock state while we run.
         NotificationHelper.ensureScreenListener(this)
         ensureLockStateService()
@@ -40,10 +50,13 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun notificationManagerCompat() = NotificationManagerCompat.from(this)
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         val incoming = extractIncomingText(intent)
         if (!incoming.isNullOrEmpty()) pendingIncomingText = incoming
+        intent?.getStringExtra(EXTRA_OPEN_NOTE_ID)?.let { pendingOpenNoteId = it }
     }
 
     private fun extractIncomingText(intent: Intent?): String? {
@@ -82,6 +95,11 @@ class MainActivity : FlutterActivity() {
                     "deleteNote" -> {
                         val id = call.argument<String>("id").orEmpty()
                         val ok = id.isNotEmpty() && NoteStore.deleteNote(this, id)
+                        if (ok) {
+                            // Dead alarm + visible reminder card must go too.
+                            ReminderScheduler.cancel(this, id)
+                            ReminderReceiver.cancelCard(this, id)
+                        }
                         NotificationHelper.post(this)
                         result.success(ok)
                     }
@@ -102,11 +120,49 @@ class MainActivity : FlutterActivity() {
                     "importNotes" -> {
                         val json = call.argument<String>("json").orEmpty()
                         val added = NoteStore.importNotes(this, json)
+                        // Imported notes may carry future reminders; arm them.
+                        ReminderScheduler.rescheduleAll(this)
                         NotificationHelper.post(this)
                         result.success(added)
                     }
-                    "clearNotes" ->
+                    "clearNotes" -> {
+                        // Cancel every pending alarm and visible reminder
+                        // card before wiping the store.
+                        val notes = NoteStore.getNotes(this)
+                        for (i in 0 until notes.length()) {
+                            val note = notes.optJSONObject(i) ?: continue
+                            val id = note.optString("id")
+                            ReminderScheduler.cancel(this, id)
+                            ReminderReceiver.cancelCard(this, id)
+                        }
+                        notificationManagerCompat().cancel(ReminderReceiver.SUMMARY_ID)
                         result.success(NoteStore.clearAll(this))
+                    }
+                    "setReminder" -> {
+                        val id = call.argument<String>("id").orEmpty()
+                        val at = call.argument<Number>("atMillis")?.toLong() ?: 0L
+                        if (id.isEmpty() || at <= System.currentTimeMillis()) {
+                            result.error("INVALID", "Bad reminder request", null)
+                        } else if (NoteStore.getNote(this, id) == null) {
+                            result.error("INVALID", "Note not found", null)
+                        } else {
+                            NoteStore.setReminderAt(this, id, at)
+                            ReminderScheduler.schedule(this, id, at)
+                            result.success(true)
+                        }
+                    }
+                    "cancelReminder" -> {
+                        val id = call.argument<String>("id").orEmpty()
+                        NoteStore.setReminderAt(this, id, 0L)
+                        ReminderScheduler.cancel(this, id)
+                        ReminderReceiver.cancelCard(this, id)
+                        result.success(true)
+                    }
+                    "takePendingOpenNoteId" -> {
+                        val id = pendingOpenNoteId
+                        pendingOpenNoteId = null
+                        result.success(id)
+                    }
                     "refreshNotification" -> {
                         NotificationHelper.setEnabled(this, true)
                         NotificationHelper.post(this)

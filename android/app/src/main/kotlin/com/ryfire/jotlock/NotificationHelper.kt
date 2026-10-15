@@ -199,6 +199,23 @@ object NotificationHelper {
         notificationManager(context).createNotificationChannel(channel)
     }
 
+    /**
+     * Channel for fired note reminders. HIGH importance = heads-up banner
+     * at fire time, visible on the lock screen, and shown in the shade.
+     */
+    fun ensureReminderChannel(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val channel = NotificationChannel(
+            "note_reminders",
+            "Note reminders",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Reminders you set on individual notes"
+            setShowBadge(true)
+        }
+        notificationManager(context).createNotificationChannel(channel)
+    }
+
     private fun notificationManager(context: Context): NotificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 

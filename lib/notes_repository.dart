@@ -27,6 +27,23 @@ class NotesRepository {
   Future<void> setPinned(String id, bool pinned) =>
       _channel.invokeMethod('setPinned', {'id': id, 'pinned': pinned});
 
+  /// Sets (or replaces) the one-shot reminder on a note. Native side
+  /// schedules an exact AlarmManager alarm that posts a notification.
+  Future<void> setReminder(String id, DateTime at) => _channel.invokeMethod(
+        'setReminder',
+        {'id': id, 'atMillis': at.millisecondsSinceEpoch},
+      );
+
+  /// Removes the reminder from a note, cancels its pending alarm and any
+  /// visible reminder card.
+  Future<void> cancelReminder(String id) =>
+      _channel.invokeMethod('cancelReminder', {'id': id});
+
+  /// Note id from a tapped reminder notification, or null. Consuming the
+  /// value clears it.
+  Future<String?> takePendingOpenNoteId() =>
+      _channel.invokeMethod<String>('takePendingOpenNoteId');
+
   /// Text sent into the app from the share sheet (ACTION_SEND) or the
   /// text-selection menu (ACTION_PROCESS_TEXT), or null if there is none.
   /// Consuming the value clears it.
