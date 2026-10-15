@@ -15,6 +15,8 @@ class MainActivity : FlutterActivity() {
     companion object {
         /** Extra: note id to open, sent by fired reminder notifications. */
         const val EXTRA_OPEN_NOTE_ID = "open_note_id"
+
+        private const val REQUEST_PICK_SOUND = 4001
     }
 
     /** Text arriving via ACTION_SEND / ACTION_PROCESS_TEXT, waiting for Dart. */
@@ -22,6 +24,9 @@ class MainActivity : FlutterActivity() {
 
     /** Note id to open after tapping a fired reminder notification. */
     private var pendingOpenNoteId: String? = null
+
+    /** Parked Dart result while the system sound picker is open. */
+    private var pendingSoundResult: MethodChannel.Result? = null
 
     private val adminComponent by lazy {
         ComponentName(this, LockAdminReceiver::class.java)
@@ -57,6 +62,32 @@ class MainActivity : FlutterActivity() {
         val incoming = extractIncomingText(intent)
         if (!incoming.isNullOrEmpty()) pendingIncomingText = incoming
         intent?.getStringExtra(EXTRA_OPEN_NOTE_ID)?.let { pendingOpenNoteId = it }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_PICK_SOUND) return
+        val dartResult = pendingSoundResult
+        pendingSoundResult = null
+        if (dartResult == null) return
+
+        // null URI (and not "Silent" stored) = picker dismissed or Silent
+        // chosen. EXTRA_RINGTONE_PICKED_URI is absent when Silent is picked.
+        val picked = data
+            ?.getParcelableExtra<android.net.Uri>(
+                android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI
+            )
+        val toStore = when {
+            resultCode != RESULT_OK -> null // dismissed: keep current sound
+            picked != null -> picked.toString()
+            else -> "" // Silent picked
+        }
+        if (toStore != null) {
+            AppSettings.setReminderSoundUri(this, toStore)
+            NotificationHelper.applyReminderSound(this)
+        }
+        dartResult.success(NotificationHelper.reminderSoundTitle(this))
     }
 
     private fun extractIncomingText(intent: Intent?): String? {
@@ -141,12 +172,13 @@ class MainActivity : FlutterActivity() {
                     "setReminder" -> {
                         val id = call.argument<String>("id").orEmpty()
                         val at = call.argument<Number>("atMillis")?.toLong() ?: 0L
+                        val silent = call.argument<Boolean>("silent") == true
                         if (id.isEmpty() || at <= System.currentTimeMillis()) {
                             result.error("INVALID", "Bad reminder request", null)
                         } else if (NoteStore.getNote(this, id) == null) {
                             result.error("INVALID", "Note not found", null)
                         } else {
-                            NoteStore.setReminderAt(this, id, at)
+                            NoteStore.setReminderAt(this, id, at, silent)
                             ReminderScheduler.schedule(this, id, at)
                             result.success(true)
                         }
@@ -162,6 +194,66 @@ class MainActivity : FlutterActivity() {
                         val id = pendingOpenNoteId
                         pendingOpenNoteId = null
                         result.success(id)
+                    }
+                    "getReminderSoundTitle" ->
+                        result.success(NotificationHelper.reminderSoundTitle(this))
+                    "pickReminderSound" -> {
+                        if (pendingSoundResult != null) {
+                            result.error("BUSY", "Sound picker already open", null)
+                        } else {
+                            pendingSoundResult = result
+                            val picker = Intent(
+                                android.media.RingtoneManager.ACTION_RINGTONE_PICKER
+                            ).apply {
+                                // Resolve straight to the platform sound
+                                // picker: a plain ACTION_RINGTONE_PICKER
+                                // start went through the app chooser on
+                                // this device because other apps also
+                                // match the action.
+                                setPackage("com.android.soundpicker")
+                                setClassName(
+                                    "com.android.soundpicker",
+                                    "com.android.soundpicker.RingtonePickerActivity"
+                                )
+                                putExtra(
+                                    android.media.RingtoneManager.EXTRA_RINGTONE_TYPE,
+                                    android.media.RingtoneManager.TYPE_NOTIFICATION
+                                )
+                                putExtra(
+                                    android.media.RingtoneManager.EXTRA_RINGTONE_TITLE,
+                                    "Reminder sound"
+                                )
+                                putExtra(
+                                    android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT,
+                                    true
+                                )
+                                // Preselect the current choice, including
+                                // the Silent radio when "" was stored.
+                                val stored = AppSettings.reminderSoundUri(this@MainActivity)
+                                if (stored != null && stored.isEmpty()) {
+                                    putExtra(
+                                        android.media.RingtoneManager
+                                            .EXTRA_RINGTONE_SHOW_DEFAULT,
+                                        false
+                                    )
+                                    putExtra(
+                                        android.media.RingtoneManager
+                                            .EXTRA_RINGTONE_EXISTING_URI,
+                                        null as android.net.Uri?
+                                    )
+                                } else {
+                                    putExtra(
+                                        android.media.RingtoneManager
+                                            .EXTRA_RINGTONE_EXISTING_URI,
+                                        NotificationHelper
+                                            .resolveReminderSoundUri(
+                                            this@MainActivity
+                                        )
+                                    )
+                                }
+                            }
+                            startActivityForResult(picker, REQUEST_PICK_SOUND)
+                        }
                     }
                     "refreshNotification" -> {
                         NotificationHelper.setEnabled(this, true)

@@ -273,12 +273,14 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
       context: context,
       builder: (dialogContext) => _ReminderPickerDialog(
         initial: note.hasReminder ? note.reminderTime : null,
+        initialSilent: note.reminderSilent,
       ),
     );
     if (!mounted) return;
-    if (result is DateTime) {
+    if (result is (DateTime, bool)) {
+      final (at, sound) = result;
       try {
-        await _repo.setReminder(note.id, result);
+        await _repo.setReminder(note.id, at, silent: !sound);
       } catch (_) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -294,8 +296,9 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
         SnackBar(
           content: Text(
             'Reminder set for '
-            '${MaterialLocalizations.of(context).formatShortDate(result)} · '
-            '${TimeOfDay.fromDateTime(result).format(context)}',
+            '${MaterialLocalizations.of(context).formatShortDate(at)} · '
+            '${TimeOfDay.fromDateTime(at).format(context)}'
+            '${sound ? '' : ' (silent)'}',
           ),
         ),
       );
@@ -655,8 +658,9 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
 /// Pops with a [DateTime] to set the reminder, [_ReminderPickerDialog.remove]
 /// to clear an existing one, or null to dismiss.
 class _ReminderPickerDialog extends StatefulWidget {
-  const _ReminderPickerDialog({this.initial});
+  const _ReminderPickerDialog({this.initial, this.initialSilent = false});
   final DateTime? initial;
+  final bool initialSilent;
 
   /// Sentinel returned to clear the reminder.
   static const String remove = 'remove';
@@ -667,6 +671,7 @@ class _ReminderPickerDialog extends StatefulWidget {
 
 class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
   DateTime? _selected;
+  bool _playSound = true;
 
   // Computed once at open time so "10 minutes" is measured from then, and
   // so groupValue comparisons stay stable across rebuilds.
@@ -684,6 +689,7 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
   void initState() {
     super.initState();
     _selected = widget.initial;
+    _playSound = !(widget.initialSilent);
   }
 
   DateTime _tomorrowNine() {
@@ -745,6 +751,14 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
               ),
             ),
             const Divider(),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Play sound'),
+              subtitle: const Text('Ring when it fires — turn off for a quiet banner'),
+              value: _playSound,
+              onChanged: (v) => setState(() => _playSound = v),
+            ),
             OutlinedButton.icon(
               onPressed: _pickCustom,
               icon: const Icon(Icons.event_outlined),
@@ -773,7 +787,10 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
         FilledButton(
           onPressed: _selected == null
               ? null
-              : () => Navigator.pop(context, _selected),
+              : () => Navigator.pop(
+                    context,
+                    (_selected!, _playSound),
+                  ),
           child: const Text('Set reminder'),
         ),
       ],
@@ -896,6 +913,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 label: const Text('Activate device admin'),
               ),
             const Divider(),
+            _ReminderSoundTile(repo: widget.repo),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.file_download_outlined),
               title: const Text('Export notes (JSON)'),
@@ -933,9 +952,54 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   }
 }
 
+/// Settings row for the reminder sound: shows the current sound's name,
+/// opens the system notification-sound picker on tap.
+class _ReminderSoundTile extends StatefulWidget {
+  const _ReminderSoundTile({required this.repo});
+  final NotesRepository repo;
+
+  @override
+  State<_ReminderSoundTile> createState() => _ReminderSoundTileState();
+}
+
+class _ReminderSoundTileState extends State<_ReminderSoundTile> {
+  String _title = 'System default';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final t = await widget.repo.getReminderSoundTitle();
+      if (!mounted) return;
+      setState(() => _title = t);
+    } catch (_) {}
+  }
+
+  Future<void> _pick() async {
+    try {
+      final t = await widget.repo.pickReminderSound();
+      if (!mounted) return;
+      setState(() => _title = t);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.notifications_active_outlined),
+      title: const Text('Reminder sound'),
+      subtitle: Text(_title),
+      onTap: _pick,
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
-
   @override
   Widget build(BuildContext context) {
     final outline = Theme.of(context).colorScheme.outline;

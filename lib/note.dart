@@ -9,12 +9,16 @@ class Note {
   /// set. Mirrors the native `reminderAt` field in NoteStore.
   final int reminderAt;
 
+  /// True when the reminder should fire without sound (banner only).
+  final bool reminderSilent;
+
   const Note({
     required this.id,
     required this.text,
     required this.createdAt,
     this.pinned = false,
     this.reminderAt = 0,
+    this.reminderSilent = false,
   });
 
   bool get hasReminder => reminderAt > 0;
@@ -31,6 +35,7 @@ class Note {
         ),
         pinned: map['pinned'] as bool? ?? false,
         reminderAt: (map['reminderAt'] as num?)?.toInt() ?? 0,
+        reminderSilent: map['reminderSilent'] as bool? ?? false,
       );
 }
 

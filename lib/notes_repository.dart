@@ -29,15 +29,31 @@ class NotesRepository {
 
   /// Sets (or replaces) the one-shot reminder on a note. Native side
   /// schedules an exact AlarmManager alarm that posts a notification.
-  Future<void> setReminder(String id, DateTime at) => _channel.invokeMethod(
+  /// [silent] fires it without sound (banner only).
+  Future<void> setReminder(String id, DateTime at, {bool silent = false}) =>
+      _channel.invokeMethod(
         'setReminder',
-        {'id': id, 'atMillis': at.millisecondsSinceEpoch},
+        {
+          'id': id,
+          'atMillis': at.millisecondsSinceEpoch,
+          'silent': silent,
+        },
       );
 
   /// Removes the reminder from a note, cancels its pending alarm and any
   /// visible reminder card.
   Future<void> cancelReminder(String id) =>
       _channel.invokeMethod('cancelReminder', {'id': id});
+
+  /// Opens the system notification-sound picker (with a Silent option).
+  /// Resolves with the newly chosen sound's display name; also resolves
+  /// with the unchanged title if the picker was dismissed.
+  Future<String> pickReminderSound() async =>
+      await _channel.invokeMethod<String>('pickReminderSound') ?? '';
+
+  /// Human-readable name of the current reminder sound.
+  Future<String> getReminderSoundTitle() async =>
+      await _channel.invokeMethod<String>('getReminderSoundTitle') ?? '';
 
   /// Note id from a tapped reminder notification, or null. Consuming the
   /// value clears it.
