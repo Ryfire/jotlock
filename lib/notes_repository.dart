@@ -120,6 +120,26 @@ class NotesRepository {
   Future<void> setAfterSaveAction(String action) =>
       _channel.invokeMethod('setAfterSaveAction', {'action': action});
 
+  /// Whether an app PIN gates the management UI. Only a salted hash is
+  /// stored natively; the plaintext digits never persist.
+  Future<bool> isPinSet() async {
+    return await _channel.invokeMethod<bool>('isPinSet') ?? false;
+  }
+
+  /// Stores a new PIN (4-8 digits) natively as a salted hash.
+  Future<void> setPin(String pin) =>
+      _channel.invokeMethod('setPin', {'pin': pin});
+
+  /// Checks a PIN against the stored hash.
+  Future<bool> verifyPin(String pin) async {
+    return await _channel.invokeMethod<bool>('verifyPin', {'pin': pin}) ?? false;
+  }
+
+  /// Removes the PIN; only succeeds when [pin] matches the current one.
+  Future<bool> clearPin(String pin) async {
+    return await _channel.invokeMethod<bool>('clearPin', {'pin': pin}) ?? false;
+  }
+
   Future<bool> isDeviceAdminActive() async {
     return await _channel.invokeMethod<bool>('isDeviceAdminActive') ?? false;
   }

@@ -1,6 +1,8 @@
 package com.ryfire.jotlock
 
 import android.content.Context
+import java.security.MessageDigest
+import java.security.SecureRandom
 
 /**
  * App-level settings (SharedPreferences, shared between Dart and Kotlin).
@@ -12,12 +14,17 @@ import android.content.Context
  * Reminder sound: the notification-sound URI played by sounded reminder
  * notifications, chosen via the system ringtone picker. An empty string
  * means "Silent" was picked; null (unset) means the system default sound.
+ *
+ * App PIN: optional gate on the Flutter management UI. Only a salted
+ * SHA-256 hash is stored — never the plaintext digits.
  */
 object AppSettings {
     private const val PREFS_FILE = "jotlock"
     private const val KEY_AFTER_SAVE = "after_save_action"
     private const val KEY_REMINDER_SOUND = "reminder_sound_uri"
     private const val KEY_REMINDER_CHANNEL_VERSION = "reminder_channel_version"
+    private const val KEY_PIN_HASH = "pin_hash"
+    private const val KEY_PIN_SALT = "pin_salt"
 
     const val AFTER_SAVE_WAIT = "wait"
     const val AFTER_SAVE_LOCK = "lock"
@@ -57,4 +64,57 @@ object AppSettings {
             .putString(KEY_AFTER_SAVE, action)
             .apply()
     }
+
+    /** Whether an app PIN has been set (only a hash exists in prefs). */
+    fun isPinSet(context: Context): Boolean =
+        pinHash(context).isNotEmpty() && pinSalt(context).isNotEmpty()
+
+    /**
+     * Stores a new PIN: generates a fresh 16-byte salt, saves the SHA-256
+     * of "jotlock:salt:pin" as hex. The plaintext never leaves this call.
+     */
+    fun setPin(context: Context, pin: String) {
+        val saltBytes = ByteArray(16).also { SecureRandom().nextBytes(it) }
+        val salt = hex(saltBytes)
+        val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString(KEY_PIN_SALT, salt)
+            .putString(KEY_PIN_HASH, hex(sha256(salt, pin)))
+            .apply()
+    }
+
+    /** Constant-time comparison of the entered PIN against the stored hash. */
+    fun verifyPin(context: Context, pin: String): Boolean {
+        val salt = pinSalt(context)
+        val stored = pinHash(context)
+        if (salt.isEmpty() || stored.isEmpty()) return false
+        return MessageDigest.isEqual(
+            stored.toByteArray(Charsets.UTF_8),
+            hex(sha256(salt, pin)).toByteArray(Charsets.UTF_8)
+        )
+    }
+
+    /** Removes the PIN (caller must have verified it first). */
+    fun clearPin(context: Context) {
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_PIN_HASH)
+            .remove(KEY_PIN_SALT)
+            .apply()
+    }
+
+    private fun pinHash(context: Context): String =
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            .getString(KEY_PIN_HASH, "") ?: ""
+
+    private fun pinSalt(context: Context): String =
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            .getString(KEY_PIN_SALT, "") ?: ""
+
+    private fun sha256(salt: String, pin: String): ByteArray =
+        MessageDigest.getInstance("SHA-256")
+            .digest("jotlock:$salt:$pin".toByteArray(Charsets.UTF_8))
+
+    private fun hex(bytes: ByteArray): String =
+        bytes.joinToString("") { "%02x".format(it) }
 }

@@ -14,7 +14,7 @@ clutter your lock screen.
   leave the device.
 - **Free and open source** — inspect every line.
 
-Latest release: **v1.1.2** · Requires Android 7.0+
+Latest release: **v1.3.0** · Requires Android 7.0+
 
 ---
 
@@ -53,6 +53,7 @@ skipped) — handy for moving to a new phone.
 | **Reminder sound** | Pick any system notification sound globally, or mark individual reminders silent. |
 | **Background keep-alive** | One-time "Allow" makes the capture card and reminders reliable through doze. |
 | **Pin notes** | Pinned notes float to the top with a badge. |
+| **App PIN (optional)** | A 4–8 digit PIN asked when opening the app. Stored as a salted hash — lock-screen capture stays instant. |
 | **Search** | Case-insensitive search over all notes. |
 | **Copy / share** | Copy any note to the clipboard, or share it out. JotLock also accepts text sent **in** from the share sheet and the text-selection menu. |
 | **Export / import** | JSON backup (share it anywhere) and a readable text export. |
@@ -116,6 +117,7 @@ The reminder sound itself (what "play sound" uses) is set in Settings →
 | After saving a note from the lock screen | Lock the phone · Show the home screen · Stay on the confirmation |
 | Reminder sound | The sound sounded reminders play — system picker, Silent included |
 | Keep running in background | One-time allow so the card + reminders survive battery doze |
+| App PIN | Optional 4–8 digit gate on the app UI — set, change, or remove from Settings |
 | Export / Import | JSON backup round-trip, plus a readable text export |
 | Clear all notes | Wipes everything (after confirmation) |
 
@@ -151,6 +153,11 @@ revocable anytime via **Settings → Security → Device admin apps → JotLock*
 - A few phone skins render inline reply fields inconsistently; the plain buttons
   (**Write note** / **Save note**) work everywhere.
 - Notes are capped at 500 (oldest trimmed) and 4,000 characters each.
+- The optional App PIN guards the note list only — lock-screen capture and the
+  shade **Jot** field stay instant by design. It is a privacy screen, not
+  encryption: notes stay plain JSON in app storage and reminder cards still
+  show note text in the shade. Forgot the PIN? Reinstalling clears it — and
+  the notes — so keep a backup before setting one.
 - While device admin is active, Android blocks uninstalling until you deactivate it
   (a safety rule, not JotLock lock-in).
 

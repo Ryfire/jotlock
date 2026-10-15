@@ -60,10 +60,10 @@ BootReceiver ── re-posts ─► NotificationHelper      Flutter app
 
 | File | Role |
 |---|---|
-| `lib/main.dart` | Notes list UI: search, pin, copy, share, editor, reminders, settings |
+| `lib/main.dart` | Notes list UI: search, pin, copy, share, editor, reminders, settings, optional PIN gate |
 | `lib/note.dart` | Note model + `filterAndSort` (pinned first, newest first) |
 | `lib/notes_repository.dart` | MethodChannel wrapper (`jotlock/notes`) |
-| `MainActivity.kt` | Channel bridge, share-intent capture, sound picker, admin activation |
+| `MainActivity.kt` | Channel bridge, share-intent capture, sound picker, admin activation, app-PIN endpoints |
 | `QuickNoteActivity.kt` | The lock-screen capture screen (`showWhenLocked`, insets-safe) |
 | `NotificationHelper.kt` | Persistent notification, channels, lock-state-aware card variants (Write note ↔ Jot), screen-state listener, reminder sound channels |
 | `QuickNoteReceiver.kt` | Saves inline notes typed in the notification and re-posts it |
@@ -72,7 +72,7 @@ BootReceiver ── re-posts ─► NotificationHelper      Flutter app
 | `NoteStore.kt` | JSON CRUD, pin, reminders (`reminderAt`/`reminderSilent`), merge-import |
 | `BootReceiver.kt` | Re-posts the notification and re-arms reminders after reboot |
 | `LockAdminReceiver.kt` | Device admin — only policy used: `force-lock` (for lock-after-save) |
-| `AppSettings.kt` | After-save behavior, reminder sound URI, channel version |
+| `AppSettings.kt` | After-save behavior, reminder sound URI, app-PIN hash, channel version |
 | `LockStateService.kt` | Foreground service (specialUse) hosting the screen-state listener |
 
 ### Lock-state-aware notification card
@@ -136,14 +136,38 @@ policy. Factory reset, password access, camera control and so on are
 structurally out of reach. Two safeguards on top: no `INTERNET` permission, and
 activation is opt-in + visible (system screen lists granted policies).
 
+### App PIN gate
+
+The optional PIN guards the Flutter management UI only — the lock-screen
+capture path (`QuickNoteActivity`, inline Jot) is deliberately untouched:
+gating it would defeat the app's purpose, and the keyguard already protects
+whatever sits behind it. It is a privacy screen, not encryption — notes stay
+plain JSON in SharedPreferences.
+
+Storage: `AppSettings` keeps a random 16-byte salt (hex) and the SHA-256 of
+`"jotlock:<salt>:<pin>"` — the plaintext digits are never persisted.
+Verification recomputes the hash and compares via `MessageDigest.isEqual`
+(constant time). Channel methods: `isPinSet`, `setPin` (validated 4-8
+digits), `verifyPin`, and `clearPin` (only clears after verification).
+
+The gate (`_PinGate` in `lib/main.dart`) wraps `NotesPage` under
+`MaterialApp.home`. On start it checks `isPinSet()` — while that check is
+pending it shows a splash instead of the note list, so a gated app never
+flashes its contents. It re-arms on every `resumed` lifecycle event,
+re-querying the setting rather than trusting a cached value, so a PIN set
+or removed in settings mid-session is always honored. In-app dialogs and
+bottom sheets only reach `inactive` and don't re-lock; full-screen system
+activities (file picker, ringtone picker, device-admin screen) do.
+
 ## Testing
 
 ```bash
 flutter test
 ```
 
-Covers the display-ordering/filtering logic (`filterAndSort`) and a widget
-smoke test that mocks the native channel.
+Covers the display-ordering/filtering logic (`filterAndSort`) and widget
+smoke tests that mock the native channel, including the PIN gate (shown
+when set, wrong-PIN rejection, unlock, re-lock on resume).
 
 ## adb device workflow (helpful bits)
 

@@ -299,6 +299,33 @@ class MainActivity : FlutterActivity() {
                         result.success(
                             powerManager.isIgnoringBatteryOptimizations(packageName)
                         )
+                    "isPinSet" -> result.success(AppSettings.isPinSet(this))
+                    "setPin" -> {
+                        val pin = call.argument<String>("pin").orEmpty()
+                        if (pin.length in 4..8 && pin.all { it.isDigit() }) {
+                            AppSettings.setPin(this, pin)
+                            result.success(true)
+                        } else {
+                            result.error("INVALID", "PIN must be 4-8 digits", null)
+                        }
+                    }
+                    "verifyPin" ->
+                        result.success(
+                            AppSettings.verifyPin(
+                                this,
+                                call.argument<String>("pin").orEmpty()
+                            )
+                        )
+                    "clearPin" -> {
+                        // Only clears when the entered PIN is correct.
+                        val pin = call.argument<String>("pin").orEmpty()
+                        if (AppSettings.verifyPin(this, pin)) {
+                            AppSettings.clearPin(this)
+                            result.success(true)
+                        } else {
+                            result.success(false)
+                        }
+                    }
                     "requestBatteryExempt" -> {
                         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
                             startActivity(

@@ -29,7 +29,7 @@ class LockNotesApp extends StatelessWidget {
         colorSchemeSeed: Colors.indigo,
         brightness: Brightness.dark,
       ),
-      home: const NotesPage(),
+      home: const _PinGate(child: NotesPage()),
     );
   }
 }
@@ -926,6 +926,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             const Divider(),
             _BackgroundTile(repo: widget.repo),
             const Divider(),
+            _PinTile(repo: widget.repo),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.file_download_outlined),
               title: const Text('Export notes (JSON)'),
@@ -959,6 +961,431 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Optional app PIN: a 4-8 digit code asked when the app is opened,
+/// guarding the Flutter management UI only. Lock-screen capture and the
+/// shade Jot field stay instant — they are the app's core flow and the
+/// device keyguard already protects what sits behind them. Only a salted
+/// SHA-256 hash is stored natively (see AppSettings.kt).
+class _PinGate extends StatefulWidget {
+  const _PinGate({required this.child});
+  final Widget child;
+
+  @override
+  State<_PinGate> createState() => _PinGateState();
+}
+
+class _PinGateState extends State<_PinGate> with WidgetsBindingObserver {
+  final NotesRepository _repo = NotesRepository();
+
+  /// null = first check still running; otherwise whether a PIN is set.
+  bool? _pinSet;
+  bool _locked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _bootstrap();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  Future<void> _bootstrap() async {
+    final set = await _isPinSet();
+    if (!mounted) return;
+    setState(() {
+      _pinSet = set;
+      _locked = set;
+    });
+  }
+
+  Future<bool> _isPinSet() async {
+    try {
+      return await _repo.isPinSet();
+    } catch (_) {
+      // Native bridge unavailable (e.g. widget tests) — no gate.
+      return false;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-lock on every return to the foreground. Full-screen system
+    // activities (file/ringtone pickers, the device-admin screen) count;
+    // in-app dialogs and bottom sheets only reach `inactive` and do not.
+    if (state != AppLifecycleState.resumed || _locked) return;
+    _recheckPin();
+  }
+
+  /// Re-queries instead of trusting the cached flag: a PIN may have been
+  /// set or removed in settings during this session.
+  Future<void> _recheckPin() async {
+    final set = await _isPinSet();
+    if (!mounted || !set || _locked) return;
+    setState(() {
+      _pinSet = true;
+      _locked = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Until the first check resolves, show a splash instead of the notes
+    // list so a gated app never flashes its contents on open.
+    if (_pinSet == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    return Stack(
+      children: [
+        widget.child,
+        if (_locked)
+          _PinUnlockScreen(
+            repo: _repo,
+            onUnlocked: () => setState(() => _locked = false),
+          ),
+      ],
+    );
+  }
+}
+
+/// Full-screen unlock gate covering the notes UI while it is locked.
+class _PinUnlockScreen extends StatefulWidget {
+  const _PinUnlockScreen({required this.repo, required this.onUnlocked});
+  final NotesRepository repo;
+  final VoidCallback onUnlocked;
+
+  @override
+  State<_PinUnlockScreen> createState() => _PinUnlockScreenState();
+}
+
+class _PinUnlockScreenState extends State<_PinUnlockScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focus = FocusNode();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final pin = _controller.text;
+    if (pin.isEmpty) return;
+    var ok = false;
+    try {
+      ok = await widget.repo.verifyPin(pin);
+    } catch (_) {}
+    if (!mounted) return;
+    if (ok) {
+      widget.onUnlocked();
+      return;
+    }
+    // Best-effort: platform haptics can be unavailable (e.g. in tests).
+    unawaited(HapticFeedback.heavyImpact().catchError((Object _) {}));
+    setState(() {
+      _error = 'Wrong PIN — try again';
+      _controller.clear();
+    });
+    _focus.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final outline = Theme.of(context).colorScheme.outline;
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  Icons.lock_outline,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'JotLock is locked',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Enter your PIN',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: outline),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: 220,
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focus,
+                  autofocus: true,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  textInputAction: TextInputAction.done,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(8),
+                  ],
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    hintText: 'PIN',
+                    errorText: _error,
+                  ),
+                  onChanged: (_) {
+                    if (_error != null) setState(() => _error = null);
+                  },
+                  onSubmitted: (_) => _submit(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _submit,
+                child: const Text('Unlock'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Dialog to set, change, or remove the app PIN. Pops `true` when the
+/// stored PIN changed, so the settings tile can refresh.
+enum _PinDialogPurpose { set, manage }
+
+class _PinSetupDialog extends StatefulWidget {
+  const _PinSetupDialog({required this.repo, required this.purpose});
+  final NotesRepository repo;
+  final _PinDialogPurpose purpose;
+
+  @override
+  State<_PinSetupDialog> createState() => _PinSetupDialogState();
+}
+
+class _PinSetupDialogState extends State<_PinSetupDialog> {
+  static final RegExp _pinPattern = RegExp(r'^\d{4,8}$');
+
+  static final List<TextInputFormatter> _pinFormatters = [
+    FilteringTextInputFormatter.digitsOnly,
+    LengthLimitingTextInputFormatter(8),
+  ];
+
+  final TextEditingController _current = TextEditingController();
+  final TextEditingController _next = TextEditingController();
+  final TextEditingController _confirm = TextEditingController();
+  String? _error;
+  bool _busy = false;
+
+  bool get _manage => widget.purpose == _PinDialogPurpose.manage;
+
+  @override
+  void dispose() {
+    _current.dispose();
+    _next.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  void _fail(String message) {
+    setState(() {
+      _busy = false;
+      _error = message;
+    });
+  }
+
+  Future<void> _submit({required bool removing}) async {
+    if (_busy) return;
+    if (!removing) {
+      if (!_pinPattern.hasMatch(_next.text)) {
+        _fail('PIN must be 4-8 digits');
+        return;
+      }
+      if (_next.text != _confirm.text) {
+        _fail('PINs do not match');
+        return;
+      }
+    }
+    setState(() => _busy = true);
+    try {
+      if (_manage) {
+        final currentOk = removing
+            ? await widget.repo.clearPin(_current.text)
+            : await widget.repo.verifyPin(_current.text);
+        if (!mounted) return;
+        if (!currentOk) {
+          _fail('Current PIN is incorrect');
+          return;
+        }
+        if (!removing) await widget.repo.setPin(_next.text);
+      } else {
+        await widget.repo.setPin(_next.text);
+      }
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (_) {
+      if (!mounted) return;
+      _fail('Something went wrong — try again');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(_manage ? 'Change app PIN' : 'Set app PIN'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Asked when you open JotLock. 4-8 digits.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            if (_manage)
+              TextField(
+                controller: _current,
+                autofocus: true,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                inputFormatters: _pinFormatters,
+                decoration: const InputDecoration(
+                  labelText: 'Current PIN',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => FocusScope.of(context).nextFocus(),
+              ),
+            TextField(
+              controller: _next,
+              autofocus: !_manage,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.next,
+              inputFormatters: _pinFormatters,
+              decoration: const InputDecoration(
+                labelText: 'New PIN',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => FocusScope.of(context).nextFocus(),
+            ),
+            TextField(
+              controller: _confirm,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              inputFormatters: _pinFormatters,
+              decoration: const InputDecoration(
+                labelText: 'Confirm PIN',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => _submit(removing: false),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        if (_manage)
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => _submit(removing: true),
+            child: const Text('Remove PIN'),
+          ),
+        FilledButton(
+          onPressed: _busy ? null : () => _submit(removing: false),
+          child: Text(_manage ? 'Save new PIN' : 'Save PIN'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Settings row for the optional app PIN: shows On/Off and opens the
+/// set/change dialog on tap.
+class _PinTile extends StatefulWidget {
+  const _PinTile({required this.repo});
+  final NotesRepository repo;
+
+  @override
+  State<_PinTile> createState() => _PinTileState();
+}
+
+class _PinTileState extends State<_PinTile> {
+  bool _set = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final set = await widget.repo.isPinSet();
+      if (!mounted) return;
+      setState(() => _set = set);
+    } catch (_) {}
+  }
+
+  Future<void> _open() async {
+    final changed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => _PinSetupDialog(
+        repo: widget.repo,
+        purpose: _set ? _PinDialogPurpose.manage : _PinDialogPurpose.set,
+      ),
+    );
+    if (changed == true) await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.lock_outline),
+      title: const Text('App PIN'),
+      subtitle: Text(_set ? 'On — asked when the app opens' : 'Off'),
+      onTap: _open,
+      trailing: _set
+          ? const Icon(Icons.check_circle_outline)
+          : const Icon(Icons.chevron_right),
     );
   }
 }
