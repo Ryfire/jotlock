@@ -28,7 +28,6 @@ class ReminderReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_FIRE = "com.ryfire.jotlock.ACTION_REMINDER_FIRE"
-        const val REMINDER_CHANNEL_ID = "note_reminders"
         const val GROUP_KEY = "com.ryfire.jotlock.REMINDERS"
 
         // Distinct stable ids: NOTIFICATION_ID (jot card) is 1001; reminder
@@ -41,7 +40,9 @@ class ReminderReceiver : BroadcastReceiver() {
         /**
          * Posts the reminder card for [id] and clears the stored reminder
          * (one-shot). Also callable directly, e.g. for past-due reminders
-         * found on boot.
+         * found on boot. The channel depends on the note's silent flag:
+         * sounded reminders use the user's picked sound, silent ones post
+         * without sound — both hidden from the lock screen.
          */
         fun showReminder(context: Context, id: String) {
             val note = NoteStore.getNote(context, id)
@@ -51,15 +52,22 @@ class ReminderReceiver : BroadcastReceiver() {
             val text = note?.optString("text")?.trim().orEmpty()
             if (note == null || text.isEmpty()) return
 
-            NotificationHelper.ensureReminderChannel(context)
+            val channelId = if (note.optBoolean("reminderSilent", false)) {
+                NotificationHelper.ensureReminderChannels(context)
+                NotificationHelper.REMINDER_SILENT_CHANNEL_ID
+            } else {
+                NotificationHelper.currentReminderChannelId(context)
+            }
             val openNote = openNotePendingIntent(context, id)
-            val child = NotificationCompat.Builder(context, REMINDER_CHANNEL_ID)
+            val child = NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(R.drawable.ic_note)
                 .setContentTitle("Note reminder")
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                // No setVisibility: the channel's SECRET governs — the
+                // card must stay off the lock screen (a notification's own
+                // visibility would override the channel default).
                 .setContentIntent(openNote)
                 .setAutoCancel(true)
                 .setGroup(GROUP_KEY)
@@ -75,7 +83,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 if (sb.notification.group == GROUP_KEY) groupCount++
             }
             if (groupCount >= 2) {
-                val summary = NotificationCompat.Builder(context, REMINDER_CHANNEL_ID)
+                val summary = NotificationCompat.Builder(context, channelId)
                     .setSmallIcon(R.drawable.ic_note)
                     .setContentTitle("JotLock reminders")
                     .setContentText("$groupCount note reminders")

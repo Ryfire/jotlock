@@ -37,6 +37,7 @@ object NoteStore {
                     "createdAt" to note.optLong("createdAt"),
                     "pinned" to note.optBoolean("pinned", false),
                     "reminderAt" to note.optLong("reminderAt", 0L),
+                    "reminderSilent" to note.optBoolean("reminderSilent", false),
                 )
             )
         }
@@ -103,15 +104,21 @@ object NoteStore {
     /**
      * Stores the reminder target time on the note. A value <= 0 removes the
      * field (no reminder). Scheduling/canceling the actual alarm lives in
-     * ReminderScheduler — this only persists the state.
+     * ReminderScheduler — this only persists the state. [silent] chooses
+     * between the sounded and silent reminder channels at fire time.
      */
-    fun setReminderAt(context: Context, id: String, atMillis: Long): Boolean {
+    fun setReminderAt(context: Context, id: String, atMillis: Long, silent: Boolean = false): Boolean {
         val notes = getNotes(context)
         for (i in 0 until notes.length()) {
             val note = notes.optJSONObject(i) ?: continue
             if (note.optString("id") == id) {
-                if (atMillis > 0) note.put("reminderAt", atMillis)
-                else note.remove("reminderAt")
+                if (atMillis > 0) {
+                    note.put("reminderAt", atMillis)
+                    note.put("reminderSilent", silent)
+                } else {
+                    note.remove("reminderAt")
+                    note.remove("reminderSilent")
+                }
                 return saveNotes(context, notes)
             }
         }
@@ -162,7 +169,10 @@ object NoteStore {
                 .put("pinned", item.optBoolean("pinned", false))
             // Only carry future reminders across an import; past ones would
             // otherwise fire immediately on the importing device.
-            if (reminder > now) note.put("reminderAt", reminder)
+            if (reminder > now) {
+                note.put("reminderAt", reminder)
+                note.put("reminderSilent", item.optBoolean("reminderSilent", false))
+            }
             notes.put(note)
             added++
         }

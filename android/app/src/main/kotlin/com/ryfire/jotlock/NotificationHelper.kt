@@ -200,20 +200,102 @@ object NotificationHelper {
     }
 
     /**
-     * Channel for fired note reminders. HIGH importance = heads-up banner
-     * at fire time, visible on the lock screen, and shown in the shade.
+     * Reminder channels. Two exist: the sounded one carries the user's
+     * picked notification sound (versioned id — channel sound is immutable
+     * after creation, so changing it requires delete + recreate), the
+     * silent one posts a banner without sound or vibration for reminders
+     * the user marked quiet. Both are IMPORTANCE_HIGH (heads-up + lock
+     * screen alert) but lockscreenVisibility SECRET: reminder cards must
+     * never clutter the lock screen — the jot "Write note" card stands
+     * alone there — while sounded reminders still ring while locked.
      */
-    fun ensureReminderChannel(context: Context) {
+    fun currentReminderChannelId(context: Context): String {
+        ensureReminderChannels(context)
+        return "note_reminders_v$reminderChannelVersion"
+    }
+
+    const val REMINDER_SILENT_CHANNEL_ID = "note_reminders_silent"
+
+    private var reminderChannelVersion = 1
+
+    fun ensureReminderChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val channel = NotificationChannel(
-            "note_reminders",
+        val nm = notificationManager(context)
+
+        // Legacy unversioned channel from before the sound feature —
+        // no longer used; remove it from user-facing channel lists.
+        nm.deleteNotificationChannel("note_reminders")
+
+        val silent = NotificationChannel(
+            REMINDER_SILENT_CHANNEL_ID,
+            "Note reminders (silent)",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Reminders on individual notes, without sound"
+            setShowBadge(true)
+            setSound(null, null)
+            enableVibration(false)
+            lockscreenVisibility = NotificationCompat.VISIBILITY_SECRET
+        }
+        nm.createNotificationChannel(silent)
+
+        val sounded = NotificationChannel(
+            "note_reminders_v$reminderChannelVersion",
             "Note reminders",
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = "Reminders you set on individual notes"
             setShowBadge(true)
+            setSound(
+                resolveReminderSoundUri(context),
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            enableVibration(true)
+            lockscreenVisibility = NotificationCompat.VISIBILITY_SECRET
         }
-        notificationManager(context).createNotificationChannel(channel)
+        nm.createNotificationChannel(sounded)
+    }
+
+    /** Stored URI, or the system default notification sound when unset. */
+    fun resolveReminderSoundUri(context: Context): android.net.Uri? {
+        val stored = AppSettings.reminderSoundUri(context)
+        if (stored != null) {
+            return if (stored.isEmpty()) null else android.net.Uri.parse(stored)
+        }
+        return android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
+    }
+
+    /**
+     * Applies a newly picked sound: bumps the version, deletes the old
+     * sounded channel, recreates it with the new URI (the documented
+     * workaround for immutable channel sound). Silent channel is untouched.
+     */
+    fun applyReminderSound(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val nm = notificationManager(context)
+        nm.deleteNotificationChannel("note_reminders_v$reminderChannelVersion")
+        reminderChannelVersion++
+        ensureReminderChannels(context)
+        Log.d(TAG, "reminder sound applied, channel v$reminderChannelVersion")
+    }
+
+    /** Human-readable name of the current reminder sound ("Silent" etc). */
+    fun reminderSoundTitle(context: Context): String {
+        val stored = AppSettings.reminderSoundUri(context)
+        if (stored != null && stored.isEmpty()) return "Silent"
+        val uri = resolveReminderSoundUri(context) ?: return "Silent"
+        if (uri == android.provider.Settings.System.DEFAULT_NOTIFICATION_URI) {
+            return "System default"
+        }
+        return try {
+            val ringtone = android.media.RingtoneManager.getRingtone(context, uri)
+            ringtone?.getTitle(context) ?: "Unknown sound"
+        } catch (_: Exception) {
+            "Unknown sound"
+        }
     }
 
     private fun notificationManager(context: Context): NotificationManager =
