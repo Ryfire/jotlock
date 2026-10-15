@@ -23,6 +23,12 @@ object AppSettings {
     const val AFTER_SAVE_LOCK = "lock"
     const val AFTER_SAVE_HOME = "home"
 
+    /**
+     * Donation page opened by the settings "Support JotLock" tile.
+     * Placeholder until launch — swap the URL here and it flows everywhere.
+     */
+    const val DONATE_URL = "https://example.com/jotlock-donate"
+
     /** "" = Silent picked; null = never picked (system default). */
     fun reminderSoundUri(context: Context): String? =
         context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)

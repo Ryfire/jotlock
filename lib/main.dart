@@ -939,6 +939,19 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               title: const Text('Clear all notes'),
               onTap: () => Navigator.pop(context, 'clear'),
             ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.favorite_outline),
+              title: const Text('Support JotLock'),
+              subtitle: const Text(
+                'Donations keep JotLock free and independent — thank you!',
+              ),
+              onTap: () {
+                try {
+                  widget.repo.openDonate();
+                } catch (_) {}
+              },
+            ),
             if (_adminActive)
               Text(
                 'Device admin is active. It is only used to lock the screen '

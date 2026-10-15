@@ -309,6 +309,18 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(true)
                     }
+                    "openDonate" -> {
+                        val opened = try {
+                            startActivity(
+                                Intent(Intent.ACTION_VIEW)
+                                    .setData(Uri.parse(AppSettings.DONATE_URL))
+                            )
+                            true
+                        } catch (e: Exception) {
+                            false
+                        }
+                        result.success(opened)
+                    }
                     "isDeviceAdminActive" ->
                         result.success(devicePolicyManager.isAdminActive(adminComponent))
                     "requestDeviceAdmin" -> {
