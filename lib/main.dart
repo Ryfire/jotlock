@@ -483,6 +483,15 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
               ]
             : [
                 IconButton(
+                  tooltip: 'About & support',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AboutPage()),
+                    );
+                  },
+                  icon: const Icon(Icons.info_outline),
+                ),
+                IconButton(
                   tooltip: 'Search',
                   onPressed: () => setState(() => _searching = true),
                   icon: const Icon(Icons.search_outlined),
@@ -939,19 +948,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               title: const Text('Clear all notes'),
               onTap: () => Navigator.pop(context, 'clear'),
             ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.favorite_outline),
-              title: const Text('Support JotLock'),
-              subtitle: const Text(
-                'Donations keep JotLock free and independent — thank you!',
-              ),
-              onTap: () {
-                try {
-                  widget.repo.openDonate();
-                } catch (_) {}
-              },
-            ),
             if (_adminActive)
               Text(
                 'Device admin is active. It is only used to lock the screen '
@@ -1062,6 +1058,129 @@ class _BackgroundTileState extends State<_BackgroundTile> {
       trailing: _exempt
           ? const Icon(Icons.check_circle_outline)
           : const Icon(Icons.chevron_right),
+    );
+  }
+}
+
+/// About page content — edit these three values to update what users see.
+/// Links open in the browser; the app itself stays offline.
+class _SupportLink {
+  const _SupportLink(this.label, this.url, {required this.icon});
+  final String label;
+  final String url;
+  final IconData icon;
+}
+
+const String _aboutMessage =
+    'Hi — JotLock is made by one person who wanted a notes app that never '
+    'gets in the way: jot a thought from the lock screen, lock the phone, '
+    'move on. If it saves you time too, a small donation keeps it free, '
+    'open source, and ad-free. Thank you!';
+
+const List<_SupportLink> _supportLinks = [
+  _SupportLink(
+    'Donate',
+    'https://example.com/jotlock-donate',
+    icon: Icons.favorite_outline,
+  ),
+];
+
+const String _sourceUrl = 'https://github.com/CornMuffinThePapaya/jotlock';
+
+/// In-app About page: developer note, support links, source code, version.
+class AboutPage extends StatefulWidget {
+  const AboutPage({super.key});
+
+  @override
+  State<AboutPage> createState() => _AboutPageState();
+}
+
+class _AboutPageState extends State<AboutPage> {
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final version = await NotesRepository().getVersionName();
+      if (!mounted) return;
+      setState(() => _version = version);
+    } catch (_) {}
+  }
+
+  Future<void> _open(String url) async {
+    try {
+      await NotesRepository().openUrl(url);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('About JotLock')),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Icon(
+                    Icons.edit_note,
+                    size: 56,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('JotLock', style: Theme.of(context).textTheme.titleLarge),
+                if (_version.isNotEmpty)
+                  Text(
+                    'Version $_version',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(_aboutMessage, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 16),
+          const Divider(),
+          for (final link in _supportLinks)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(link.icon),
+              title: Text(link.label),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: () => _open(link.url),
+            ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.code),
+            title: const Text('Source code on GitHub'),
+            subtitle: const Text('MIT licensed — inspect every line'),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () => _open(_sourceUrl),
+          ),
+          const Divider(),
+          const SizedBox(height: 8),
+          Text(
+            'No accounts, no cloud, no internet permission — '
+            'notes never leave your device.',
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

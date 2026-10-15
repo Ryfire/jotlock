@@ -309,18 +309,31 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(true)
                     }
-                    "openDonate" -> {
-                        val opened = try {
-                            startActivity(
-                                Intent(Intent.ACTION_VIEW)
-                                    .setData(Uri.parse(AppSettings.DONATE_URL))
-                            )
-                            true
-                        } catch (e: Exception) {
+                    "openUrl" -> {
+                        val url = call.argument<String>("url").orEmpty()
+                        val opened = if (url.startsWith("https://") ||
+                            url.startsWith("http://")
+                        ) {
+                            try {
+                                startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                )
+                                true
+                            } catch (e: Exception) {
+                                false
+                            }
+                        } else {
                             false
                         }
                         result.success(opened)
                     }
+                    "getVersionName" -> result.success(
+                        try {
+                            packageManager.getPackageInfo(packageName, 0).versionName
+                        } catch (e: Exception) {
+                            ""
+                        }
+                    )
                     "isDeviceAdminActive" ->
                         result.success(devicePolicyManager.isAdminActive(adminComponent))
                     "requestDeviceAdmin" -> {

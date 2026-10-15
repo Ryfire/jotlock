@@ -57,6 +57,7 @@ skipped) — handy for moving to a new phone.
 | **Copy / share** | Copy any note to the clipboard, or share it out. JotLock also accepts text sent **in** from the share sheet and the text-selection menu. |
 | **Export / import** | JSON backup (share it anywhere) and a readable text export. |
 | **Notification toggle** | Don't want the persistent card? Turn it off in settings; it returns on next launch. |
+| **About & support** | The info icon in the app bar opens a developer note, support links, and the GitHub source. |
 | **Polish** | Material 3, light/dark, adaptive + themed icons. |
 
 ---
@@ -104,6 +105,7 @@ The reminder sound itself (what "play sound" uses) is set in Settings →
 - **Tap a note** to edit · **Copy** / **Delete** icons on each note
 - **Long-press** for the full menu: *Edit · Pin · Copy · Remind me… · Share · Delete*
 - **Magnifier** to search · **＋ New note** to add
+- **Info icon** — About & support: a note from the developer, donation links, and the source code
 
 ---
 

@@ -67,9 +67,14 @@ class NotesRepository {
   Future<void> requestBatteryExempt() =>
       _channel.invokeMethod('requestBatteryExempt');
 
-  /// Opens the donation page (AppSettings.DONATE_URL) in the browser.
-  /// The app itself stays offline — the browser handles the link.
-  Future<void> openDonate() => _channel.invokeMethod('openDonate');
+  /// Opens [url] in the system browser (https/http only — enforced
+  /// natively). The app itself stays offline; the browser handles the link.
+  Future<void> openUrl(String url) =>
+      _channel.invokeMethod('openUrl', {'url': url});
+
+  /// Installed app version name (PackageManager.versionName), or ''.
+  Future<String> getVersionName() async =>
+      await _channel.invokeMethod<String>('getVersionName') ?? '';
 
   /// Note id from a tapped reminder notification, or null. Consuming the
   /// value clears it.
