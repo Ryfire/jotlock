@@ -151,6 +151,13 @@ class MainActivity : FlutterActivity() {
                             id.isNotEmpty() && NoteStore.setPinned(this, id, pinned)
                         )
                     }
+                    "setNoteColor" -> {
+                        val id = call.argument<String>("id").orEmpty()
+                        val color = call.argument<Int>("color") ?: 0
+                        result.success(
+                            id.isNotEmpty() && NoteStore.setNoteColor(this, id, color)
+                        )
+                    }
                     "takePendingIncomingText" -> {
                         val text = pendingIncomingText
                         pendingIncomingText = null

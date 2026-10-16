@@ -36,6 +36,7 @@ object NoteStore {
                     "text" to note.optString("text"),
                     "createdAt" to note.optLong("createdAt"),
                     "pinned" to note.optBoolean("pinned", false),
+                    "color" to note.optInt("color", 0),
                     "reminderAt" to note.optLong("reminderAt", 0L),
                     "reminderSilent" to note.optBoolean("reminderSilent", false),
                 )
@@ -95,6 +96,26 @@ object NoteStore {
             val note = notes.optJSONObject(i) ?: continue
             if (note.optString("id") == id) {
                 note.put("pinned", pinned)
+                return saveNotes(context, notes)
+            }
+        }
+        return false
+    }
+
+    /**
+     * Stores the priority color index on the note. A value <= 0 removes the
+     * field (no color). The palette itself lives on the Dart side.
+     */
+    fun setNoteColor(context: Context, id: String, colorIndex: Int): Boolean {
+        val notes = getNotes(context)
+        for (i in 0 until notes.length()) {
+            val note = notes.optJSONObject(i) ?: continue
+            if (note.optString("id") == id) {
+                if (colorIndex > 0) {
+                    note.put("color", colorIndex)
+                } else {
+                    note.remove("color")
+                }
                 return saveNotes(context, notes)
             }
         }
@@ -167,6 +188,8 @@ object NoteStore {
                 .put("text", text)
                 .put("createdAt", createdAt)
                 .put("pinned", item.optBoolean("pinned", false))
+            val color = item.optInt("color", 0)
+            if (color > 0) note.put("color", color)
             // Only carry future reminders across an import; past ones would
             // otherwise fire immediately on the importing device.
             if (reminder > now) {

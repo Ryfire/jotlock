@@ -27,6 +27,10 @@ class NotesRepository {
   Future<void> setPinned(String id, bool pinned) =>
       _channel.invokeMethod('setPinned', {'id': id, 'pinned': pinned});
 
+  /// Sets the priority color on a note. `0` removes the color.
+  Future<void> setNoteColor(String id, int colorIndex) =>
+      _channel.invokeMethod('setNoteColor', {'id': id, 'color': colorIndex});
+
   /// Sets (or replaces) the one-shot reminder on a note. Native side
   /// schedules an exact AlarmManager alarm that posts a notification.
   /// [silent] fires it without sound (banner only).

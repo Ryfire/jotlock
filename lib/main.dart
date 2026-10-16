@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:jotlock/note.dart';
+import 'package:jotlock/note_colors.dart';
 import 'package:jotlock/notes_repository.dart';
 
 void main() {
@@ -163,6 +164,12 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
     await _reload();
   }
 
+  /// Applies (or clears, when 0) the priority color on a note.
+  Future<void> _setNoteColor(Note note, int colorIndex) async {
+    await _repo.setNoteColor(note.id, colorIndex);
+    await _reload();
+  }
+
   Future<void> _delete(Note note) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -233,6 +240,38 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
                 title: const Text('Cancel reminder'),
                 onTap: () => Navigator.pop(sheetContext, 'cancel_reminder'),
               ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 8),
+                    child: Text(
+                      'Priority color',
+                      style: Theme.of(sheetContext).textTheme.labelLarge,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      _ColorSwatch(
+                        selected: note.colorIndex == noColorIndex,
+                        onTap: () => Navigator.pop(sheetContext, 'color:0'),
+                      ),
+                      for (var i = 0; i < noteColors.length; i++) ...[
+                        const Spacer(),
+                        _ColorSwatch(
+                          color: noteColors[i],
+                          selected: note.colorIndex == i + 1,
+                          onTap: () =>
+                              Navigator.pop(sheetContext, 'color:${i + 1}'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.share_outlined),
               title: const Text('Share'),
@@ -249,6 +288,11 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
       ),
     );
     if (action == null || !mounted) return;
+    if (action.startsWith('color:')) {
+      final index = int.tryParse(action.substring('color:'.length)) ?? 0;
+      await _setNoteColor(note, index);
+      return;
+    }
     switch (action) {
       case 'edit':
         await _edit(note);
@@ -542,8 +586,10 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
   }
 
   Widget _buildNoteTile(BuildContext context, Note note) {
+    final tint = noteCardColor(note.colorIndex, Theme.of(context).colorScheme);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
+      color: tint,
       child: ListTile(
         leading: note.pinned ? const Icon(Icons.push_pin, size: 20) : null,
         title: Text(
@@ -1607,6 +1653,51 @@ class _AboutPageState extends State<AboutPage> {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A single circular color choice in the long-press sheet. A null [color]
+/// renders the "no color" swatch (outline circle with a slash).
+class _ColorSwatch extends StatelessWidget {
+  const _ColorSwatch({required this.onTap, this.color, this.selected = false});
+
+  final Color? color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final selectedRing = selected
+        ? Border.all(color: scheme.primary, width: 2)
+        : Border.all(color: Colors.transparent, width: 2);
+    return InkResponse(
+      onTap: onTap,
+      radius: 22,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: selectedRing,
+        ),
+        padding: const EdgeInsets.all(3),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color,
+            border: color == null
+                ? Border.all(color: scheme.outline, width: 1.5)
+                : null,
+          ),
+          child: color == null
+              ? Icon(Icons.block, size: 14, color: scheme.outline)
+              : (selected
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  : null),
+        ),
       ),
     );
   }

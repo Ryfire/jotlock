@@ -5,6 +5,10 @@ class Note {
   final DateTime createdAt;
   final bool pinned;
 
+  /// Index into the fixed priority palette in `note_colors.dart`
+  /// (`0` = no color). Mirrors the native `color` field in NoteStore.
+  final int colorIndex;
+
   /// Epoch millis of the one-shot reminder on this note, or 0 when none is
   /// set. Mirrors the native `reminderAt` field in NoteStore.
   final int reminderAt;
@@ -17,6 +21,7 @@ class Note {
     required this.text,
     required this.createdAt,
     this.pinned = false,
+    this.colorIndex = 0,
     this.reminderAt = 0,
     this.reminderSilent = false,
   });
@@ -34,6 +39,7 @@ class Note {
           (map['createdAt'] as num?)?.toInt() ?? 0,
         ),
         pinned: map['pinned'] as bool? ?? false,
+        colorIndex: (map['color'] as num?)?.toInt() ?? 0,
         reminderAt: (map['reminderAt'] as num?)?.toInt() ?? 0,
         reminderSilent: map['reminderSilent'] as bool? ?? false,
       );

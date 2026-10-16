@@ -59,4 +59,22 @@ void main() {
     // Pinned note appears before the unpinned one.
     expect(text.indexOf('Pinned note'), lessThan(text.indexOf('Second note')));
   });
+
+  test('fromMap: color index round-trips and defaults to none', () {
+    final colored = Note.fromMap({
+      'id': '1',
+      'text': 'colored',
+      'createdAt': 1700000000000,
+      'color': 3,
+    });
+    expect(colored.colorIndex, 3);
+
+    // Legacy notes (and zeroed values) map to "no color".
+    for (final map in [
+      <dynamic, dynamic>{'id': '2', 'text': 'legacy'},
+      <dynamic, dynamic>{'id': '3', 'text': 'explicit zero', 'color': 0},
+    ]) {
+      expect(Note.fromMap(map).colorIndex, 0);
+    }
+  });
 }
