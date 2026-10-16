@@ -14,32 +14,17 @@ flutter pub get
 flutter run                      # debug on a connected device
 flutter test                     # unit + widget tests
 flutter analyze
-flutter build apk --release      # signed release
+flutter build apk --release      # debug-signed release build
 ```
 
-### Release signing
+### Signing
 
-`app-release.apk` is signed with `android/app/jotlock.keystore`. The keystore
-credentials live in `android/key.properties`:
-
-```
-storePassword=...
-keyPassword=...
-keyAlias=jotlock
-storeFile=jotlock.keystore
-```
-
-Keep the keystore **and** `key.properties` safe — losing them means you can't
-update the app with the same identity. To regenerate from scratch:
-
-```bash
-keytool -genkeypair -v -keystore android/app/jotlock.keystore \
-  -storetype PKCS12 -alias jotlock -keyalg RSA -keysize 2048 \
-  -validity 10950 -dname "CN=JotLock, O=Ryfire, C=US"
-```
-
-If `key.properties` is absent, release builds fall back to debug signing so
-CI-style checkouts still build.
+All builds (debug and release) are signed with the standard Android **debug
+key** (`~/.android/debug.keystore`), so a locally built APK always installs
+over another locally built one. Notes: installing over a Play-store release
+signed with a different key requires uninstalling first, which wipes app
+data — export notes from the in-app JSON/backup option before switching
+between differently-signed builds.
 
 ## Architecture
 
