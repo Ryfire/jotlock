@@ -158,6 +158,13 @@ class MainActivity : FlutterActivity() {
                             id.isNotEmpty() && NoteStore.setNoteColor(this, id, color)
                         )
                     }
+                    "setDone" -> {
+                        val id = call.argument<String>("id").orEmpty()
+                        val done = call.argument<Boolean>("done") == true
+                        result.success(
+                            id.isNotEmpty() && NoteStore.setDone(this, id, done)
+                        )
+                    }
                     "takePendingIncomingText" -> {
                         val text = pendingIncomingText
                         pendingIncomingText = null
@@ -190,12 +197,15 @@ class MainActivity : FlutterActivity() {
                         val id = call.argument<String>("id").orEmpty()
                         val at = call.argument<Number>("atMillis")?.toLong() ?: 0L
                         val silent = call.argument<Boolean>("silent") == true
+                        val repeatDays =
+                            (call.argument<Number>("repeatDays")?.toInt() ?: 0)
+                                .coerceIn(0, 366)
                         if (id.isEmpty() || at <= System.currentTimeMillis()) {
                             result.error("INVALID", "Bad reminder request", null)
                         } else if (NoteStore.getNote(this, id) == null) {
                             result.error("INVALID", "Note not found", null)
                         } else {
-                            NoteStore.setReminderAt(this, id, at, silent)
+                            NoteStore.setReminderAt(this, id, at, silent, repeatDays)
                             ReminderScheduler.schedule(this, id, at)
                             result.success(true)
                         }
@@ -307,6 +317,14 @@ class MainActivity : FlutterActivity() {
                             powerManager.isIgnoringBatteryOptimizations(packageName)
                         )
                     "isPinSet" -> result.success(AppSettings.isPinSet(this))
+                    "getRelockOnResume" -> result.success(AppSettings.relockOnResume(this))
+                    "setRelockOnResume" -> {
+                        AppSettings.setRelockOnResume(
+                            this,
+                            call.argument<Boolean>("value") == true
+                        )
+                        result.success(true)
+                    }
                     "setPin" -> {
                         val pin = call.argument<String>("pin").orEmpty()
                         if (pin.length in 4..8 && pin.all { it.isDigit() }) {

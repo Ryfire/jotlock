@@ -10,8 +10,12 @@ import androidx.core.app.NotificationCompat
 /**
  * Fires a note's reminder notification when its alarm elapses. The note's
  * text is read fresh from NoteStore at fire time (an edited note reminds
- * with its current text; a deleted note is a silent no-op). Reminders are
- * one-shot: the stored reminderAt is cleared here so nothing re-fires.
+ * with its current text; a deleted note is a silent no-op).
+ *
+ * One-shot reminders clear their stored reminderAt here so nothing
+ * re-fires. Recurring ones (repeatDays > 0) keep the card identical but
+ * advance reminderAt to the next occurrence, re-arm the alarm, and let
+ * missed periods collapse into this single card instead of stacking up.
  *
  * Cards share a group key with an auto summary so several reminders firing
  * the same day collapse into one stacked shade entry instead of filling it.
@@ -38,21 +42,46 @@ class ReminderReceiver : BroadcastReceiver() {
             100000 + (id.hashCode() and 0x7FFFFFFF) % 800000
 
         /**
-         * Posts the reminder card for [id] and clears the stored reminder
-         * (one-shot). Also callable directly, e.g. for past-due reminders
-         * found on boot. The channel depends on the note's silent flag:
+         * Posts the reminder card for [id] and updates the stored reminder:
+         * one-shot reminders are cleared; recurring ones advance to the
+         * next occurrence and re-arm (callable from the alarm path and the
+         * boot path alike). The channel depends on the note's silent flag:
          * sounded reminders use the user's picked sound, silent ones post
          * without sound — both hidden from the lock screen.
          */
         fun showReminder(context: Context, id: String) {
             val note = NoteStore.getNote(context, id)
-            // One-shot: drop the stored reminder regardless of whether the
-            // note still exists.
-            NoteStore.setReminderAt(context, id, 0L)
-            val text = note?.optString("text")?.trim().orEmpty()
-            if (note == null || text.isEmpty()) return
+            if (note == null) {
+                // Note is gone: drop whatever reminder state remains.
+                NoteStore.setReminderAt(context, id, 0L)
+                return
+            }
+            val silent = note.optBoolean("reminderSilent", false)
+            val text = note.optString("text").trim()
+            if (text.isEmpty()) {
+                // Nothing to remind about — don't re-arm a recurring
+                // reminder into silence forever either.
+                NoteStore.setReminderAt(context, id, 0L)
+                return
+            }
+            val repeatDays = note.optInt("repeatDays", 0)
+            if (repeatDays > 0) {
+                // Recurring: show this occurrence's card, then advance to
+                // the first future occurrence. Missed periods collapse into
+                // one card rather than one notification per missed day.
+                val dayMs = 24L * 60 * 60 * 1000
+                val now = System.currentTimeMillis()
+                var next = note.optLong("reminderAt", 0L)
+                if (next <= 0L) next = now
+                while (next <= now) next += repeatDays * dayMs
+                NoteStore.setReminderAt(context, id, next, silent, repeatDays)
+                ReminderScheduler.schedule(context, id, next)
+            } else {
+                // One-shot: drop the stored reminder.
+                NoteStore.setReminderAt(context, id, 0L)
+            }
 
-            val channelId = if (note.optBoolean("reminderSilent", false)) {
+            val channelId = if (silent) {
                 NotificationHelper.ensureReminderChannels(context)
                 NotificationHelper.REMINDER_SILENT_CHANNEL_ID
             } else {

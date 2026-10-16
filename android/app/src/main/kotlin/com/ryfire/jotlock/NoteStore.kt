@@ -39,6 +39,8 @@ object NoteStore {
                     "color" to note.optInt("color", 0),
                     "reminderAt" to note.optLong("reminderAt", 0L),
                     "reminderSilent" to note.optBoolean("reminderSilent", false),
+                    "repeatDays" to note.optInt("repeatDays", 0),
+                    "done" to note.optBoolean("done", false),
                 )
             )
         }
@@ -123,12 +125,41 @@ object NoteStore {
     }
 
     /**
-     * Stores the reminder target time on the note. A value <= 0 removes the
-     * field (no reminder). Scheduling/canceling the actual alarm lives in
-     * ReminderScheduler — this only persists the state. [silent] chooses
-     * between the sounded and silent reminder channels at fire time.
+     * Marks a note done (struck through in the list). A true flag saves the
+     * field; false removes it — done is stored only when set, like pin/color.
+     * Reminder clearing lives on the Dart side (user-visible snackbar).
      */
-    fun setReminderAt(context: Context, id: String, atMillis: Long, silent: Boolean = false): Boolean {
+    fun setDone(context: Context, id: String, done: Boolean): Boolean {
+        val notes = getNotes(context)
+        for (i in 0 until notes.length()) {
+            val note = notes.optJSONObject(i) ?: continue
+            if (note.optString("id") == id) {
+                if (done) {
+                    note.put("done", true)
+                } else {
+                    note.remove("done")
+                }
+                return saveNotes(context, notes)
+            }
+        }
+        return false
+    }
+
+    /**
+     * Stores the reminder target time on the note. A value <= 0 removes the
+     * fields (no reminder). [repeatDays] > 0 marks the reminder recurring —
+     * ReminderReceiver advances reminderAt on each fire and re-arms.
+     * Scheduling/canceling the actual alarm lives in ReminderScheduler —
+     * this only persists the state. [silent] chooses between the sounded
+     * and silent reminder channels at fire time.
+     */
+    fun setReminderAt(
+        context: Context,
+        id: String,
+        atMillis: Long,
+        silent: Boolean = false,
+        repeatDays: Int = 0,
+    ): Boolean {
         val notes = getNotes(context)
         for (i in 0 until notes.length()) {
             val note = notes.optJSONObject(i) ?: continue
@@ -136,9 +167,15 @@ object NoteStore {
                 if (atMillis > 0) {
                     note.put("reminderAt", atMillis)
                     note.put("reminderSilent", silent)
+                    if (repeatDays > 0) {
+                        note.put("repeatDays", repeatDays)
+                    } else {
+                        note.remove("repeatDays")
+                    }
                 } else {
                     note.remove("reminderAt")
                     note.remove("reminderSilent")
+                    note.remove("repeatDays")
                 }
                 return saveNotes(context, notes)
             }
@@ -190,11 +227,14 @@ object NoteStore {
                 .put("pinned", item.optBoolean("pinned", false))
             val color = item.optInt("color", 0)
             if (color > 0) note.put("color", color)
+            if (item.optBoolean("done", false)) note.put("done", true)
             // Only carry future reminders across an import; past ones would
             // otherwise fire immediately on the importing device.
             if (reminder > now) {
                 note.put("reminderAt", reminder)
                 note.put("reminderSilent", item.optBoolean("reminderSilent", false))
+                val repeat = item.optInt("repeatDays", 0)
+                if (repeat > 0) note.put("repeatDays", repeat)
             }
             notes.put(note)
             added++

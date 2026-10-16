@@ -25,6 +25,7 @@ object AppSettings {
     private const val KEY_REMINDER_CHANNEL_VERSION = "reminder_channel_version"
     private const val KEY_PIN_HASH = "pin_hash"
     private const val KEY_PIN_SALT = "pin_salt"
+    private const val KEY_RELOCK_ON_RESUME = "relock_on_resume"
 
     const val AFTER_SAVE_WAIT = "wait"
     const val AFTER_SAVE_LOCK = "lock"
@@ -100,6 +101,22 @@ object AppSettings {
             .edit()
             .remove(KEY_PIN_HASH)
             .remove(KEY_PIN_SALT)
+            .apply()
+    }
+
+    /**
+     * Whether returning to the app from the background should re-lock the
+     * PIN gate (default true). When off, the gate only engages on a cold
+     * app start. Read fresh by the gate on every resume.
+     */
+    fun relockOnResume(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            .getBoolean(KEY_RELOCK_ON_RESUME, true)
+
+    fun setRelockOnResume(context: Context, value: Boolean) {
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_RELOCK_ON_RESUME, value)
             .apply()
     }
 

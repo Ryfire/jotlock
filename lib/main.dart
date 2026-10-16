@@ -171,26 +171,35 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
   }
 
   Future<void> _delete(Note note) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete note?'),
-        content: const Text('This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+    final ok = await _repo.deleteNote(note.id);
+    if (!ok || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Note deleted'),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => _restoreDeleted(note),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await _repo.deleteNote(note.id);
+        ),
+      );
     await _reload();
+  }
+
+  /// Puts [note] back by feeding its map through the import-merge path:
+  /// the id no longer exists after the delete, so it is added back whole
+  /// (text, pin, color, reminder fields) — no dedicated native endpoint.
+  Future<void> _restoreDeleted(Note note) async {
+    try {
+      await _repo.importNotes(jsonEncode([note.toMap()]));
+      await _reload();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Note restored')),
+      );
+    } catch (_) {}
   }
 
   Future<void> _copy(Note note) async {
@@ -318,13 +327,19 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
       builder: (dialogContext) => _ReminderPickerDialog(
         initial: note.hasReminder ? note.reminderTime : null,
         initialSilent: note.reminderSilent,
+        initialRepeatDays: note.repeatDays,
       ),
     );
     if (!mounted) return;
-    if (result is (DateTime, bool)) {
-      final (at, sound) = result;
+    if (result is (DateTime, bool, int)) {
+      final (at, sound, repeatDays) = result;
       try {
-        await _repo.setReminder(note.id, at, silent: !sound);
+        await _repo.setReminder(
+          note.id,
+          at,
+          silent: !sound,
+          repeatDays: repeatDays,
+        );
       } catch (_) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -336,12 +351,14 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
       }
       await _reload();
       if (!mounted) return;
+      final repeat = repeatLabel(repeatDays);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Reminder set for '
             '${MaterialLocalizations.of(context).formatShortDate(at)} · '
             '${TimeOfDay.fromDateTime(at).format(context)}'
+            '${repeat.isEmpty ? '' : ' · $repeat'}'
             '${sound ? '' : ' (silent)'}',
           ),
         ),
@@ -411,6 +428,8 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
       ),
     );
     if (confirmed != true) return;
+    // Replacing the snackbar kills the undo UI; the closure can no longer
+    // fire after the wipe.
     await _repo.clearNotes();
     await _reload();
     if (!mounted) return;
@@ -516,7 +535,9 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
                 ),
                 onChanged: (_) => setState(() {}),
               )
-            : const Text('JotLock'),
+            : _notes.isEmpty
+                ? const Text('JotLock')
+                : Text('JotLock (${_displayNotes.length})'),
         actions: _searching
             ? [
                 IconButton(
@@ -587,39 +608,77 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
 
   Widget _buildNoteTile(BuildContext context, Note note) {
     final tint = noteCardColor(note.colorIndex, Theme.of(context).colorScheme);
+    final outline = Theme.of(context).colorScheme.outline;
+    final (checked, total) = checklistProgress(note.text);
+    // Subtitle: date, then optional checklist progress and reminder info.
+    final subtitleParts = <String>[
+      if (total > 0) '$checked/$total',
+      if (note.hasReminder)
+        'reminds ${_formatReminder(context, note.reminderTime)}'
+            '${_repeatSuffix(note.repeatDays)}',
+    ];
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       color: tint,
       child: ListTile(
         leading: note.pinned ? const Icon(Icons.push_pin, size: 20) : null,
-        title: Text(
-          note.text,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: note.hasReminder
-            ? Row(
+        title: checklistItems(note.text).isEmpty
+            ? Text(
+                note.text,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: note.done
+                    ? TextStyle(
+                        decoration: TextDecoration.lineThrough,
+                        color: outline,
+                      )
+                    : null,
+              )
+            : _ChecklistView(
+                note: note,
+                onToggleLine: (line) => _toggleChecklistLine(note, line),
+              ),
+        subtitle: subtitleParts.isEmpty
+            ? Text(
+                _formatDate(context, note.createdAt),
+                style: note.done ? TextStyle(color: outline) : null,
+              )
+            : Row(
                 children: [
-                  Icon(
-                    Icons.alarm,
-                    size: 14,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 4),
+                  if (note.hasReminder)
+                    Icon(
+                      Icons.alarm,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  if (note.hasReminder) const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '${_formatDate(context, note.createdAt)} · reminds '
-                      '${_formatReminder(context, note.reminderTime)}',
+                      [_formatDate(context, note.createdAt), ...subtitleParts]
+                          .join(' · '),
+                      style: note.done ? TextStyle(color: outline) : null,
                     ),
                   ),
                 ],
-              )
-            : Text(_formatDate(context, note.createdAt)),
+              ),
         onTap: () => _edit(note),
         onLongPress: () => _showNoteActions(note),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            SizedBox(
+              width: 36,
+              height: 32,
+              child: Tooltip(
+                message: note.done ? 'Mark not done' : 'Mark done',
+                child: Checkbox(
+                  value: note.done,
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onChanged: (v) => _toggleDone(note, v == true),
+                ),
+              ),
+            ),
             IconButton(
               tooltip: 'Copy',
               icon: const Icon(Icons.copy_outlined),
@@ -636,6 +695,48 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
     );
   }
 
+  /// Marks a note done (or clears it). When done is also set while a
+  /// reminder is pending, the reminder is cleared — done means done, and
+  /// unchecking never silently re-arms anything.
+  Future<void> _toggleDone(Note note, bool done) async {
+    await _repo.setDone(note.id, done);
+    var cleared = false;
+    if (done && note.hasReminder) {
+      await _repo.cancelReminder(note.id);
+      cleared = true;
+    }
+    await _reload();
+    if (!mounted || !cleared) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Marked done — reminder cleared')),
+    );
+  }
+
+  /// ' · daily', ' · every 3 days' — subtitle suffix for recurring notes.
+  String _repeatSuffix(int repeatDays) {
+    final label = repeatLabel(repeatDays);
+    return label.isEmpty ? '' : ' · $label';
+  }
+
+  /// Flips one checklist line and saves. When checking the last open item
+  /// completes the list and the note still has a reminder, the reminder is
+  /// cleared automatically (recurring included) — done means done.
+  Future<void> _toggleChecklistLine(Note note, int lineIndex) async {
+    final newText = toggleChecklistItem(note.text, lineIndex);
+    if (newText == note.text) return;
+    await _repo.updateNote(note.id, newText);
+    final items = checklistItems(newText);
+    final cleared = note.hasReminder &&
+        items.isNotEmpty &&
+        items.every((item) => item.checked);
+    if (cleared) await _repo.cancelReminder(note.id);
+    await _reload();
+    if (!mounted || !cleared) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('All items done — reminder cleared')),
+    );
+  }
+
   String _formatDate(BuildContext context, DateTime dt) {
     final loc = MaterialLocalizations.of(context);
     return '${loc.formatShortDate(dt)} · ${TimeOfDay.fromDateTime(dt).format(context)}';
@@ -649,6 +750,97 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
         dt.year == now.year && dt.month == now.month && dt.day == now.day;
     final time = TimeOfDay.fromDateTime(dt).format(context);
     return sameDay ? time : '${loc.formatShortDate(dt)} · $time';
+  }
+}
+
+/// Renders a note whose text contains `[ ]`/`[x]` checklist lines as
+/// tappable checkbox rows interleaved with plain lines. Checkboxes tap the
+/// row only — label taps fall through to the card's edit action. Long
+/// lists are capped with a "+N more" hint.
+class _ChecklistView extends StatelessWidget {
+  const _ChecklistView({required this.note, required this.onToggleLine});
+
+  final Note note;
+  final void Function(int lineIndex) onToggleLine;
+
+  static const int _maxRows = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final lines = note.text.split('\n');
+    final rows = <Widget>[];
+    var hidden = 0;
+    for (var i = 0; i < lines.length; i++) {
+      final item = checklistItemAt(note.text, i);
+      if (rows.length >= _maxRows) {
+        if (item != null) hidden++;
+        continue;
+      }
+      if (item == null) {
+        if (lines[i].trim().isEmpty) continue; // blank spacing line
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              lines[i],
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: note.done
+                  ? TextStyle(
+                      decoration: TextDecoration.lineThrough,
+                      color: scheme.outline,
+                    )
+                  : null,
+            ),
+          ),
+        );
+        continue;
+      }
+      final strike = note.done || item.checked;
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 36,
+              height: 28,
+              child: Checkbox(
+                value: item.checked,
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onChanged: (_) => onToggleLine(i),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                item.label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: strike
+                    ? TextStyle(
+                        decoration: TextDecoration.lineThrough,
+                        color: scheme.outline,
+                      )
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (hidden > 0) {
+      rows.add(
+        Text(
+          '… +$hidden more',
+          style: TextStyle(fontSize: 12, color: scheme.outline),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: rows,
+    );
   }
 }
 
@@ -709,13 +901,19 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
   }
 }
 
-/// Reminder picker: quick presets plus a custom date & time selection.
-/// Pops with a [DateTime] to set the reminder, [_ReminderPickerDialog.remove]
-/// to clear an existing one, or null to dismiss.
+/// Reminder picker: quick presets, repeat selection, plus a custom date &
+/// time. Pops with a `(DateTime, bool playSound, int repeatDays)` record to
+/// set the reminder, [_ReminderPickerDialog.remove] to clear an existing
+/// one, or null to dismiss.
 class _ReminderPickerDialog extends StatefulWidget {
-  const _ReminderPickerDialog({this.initial, this.initialSilent = false});
+  const _ReminderPickerDialog({
+    this.initial,
+    this.initialSilent = false,
+    this.initialRepeatDays = 0,
+  });
   final DateTime? initial;
   final bool initialSilent;
+  final int initialRepeatDays;
 
   /// Sentinel returned to clear the reminder.
   static const String remove = 'remove';
@@ -727,6 +925,11 @@ class _ReminderPickerDialog extends StatefulWidget {
 class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
   DateTime? _selected;
   bool _playSound = true;
+
+  static const _repeatModes = {'once': 'Once', 'daily': 'Every day', 'weekly': 'Every week', 'custom': 'Custom…'};
+  String _repeat = 'once';
+  final TextEditingController _customCount = TextEditingController(text: '2');
+  String _customUnit = 'days';
 
   // Computed once at open time so "10 minutes" is measured from then, and
   // so groupValue comparisons stay stable across rebuilds.
@@ -745,6 +948,38 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
     super.initState();
     _selected = widget.initial;
     _playSound = !(widget.initialSilent);
+    final days = widget.initialRepeatDays;
+    if (days == 1) {
+      _repeat = 'daily';
+    } else if (days == 7) {
+      _repeat = 'weekly';
+    } else if (days > 0) {
+      _repeat = 'custom';
+      _customCount.text =
+          days % 7 == 0 && days >= 14 ? '${days ~/ 7}' : '$days';
+      _customUnit = days % 7 == 0 && days >= 14 ? 'weeks' : 'days';
+    }
+  }
+
+  @override
+  void dispose() {
+    _customCount.dispose();
+    super.dispose();
+  }
+
+  int get _repeatDaysValue {
+    switch (_repeat) {
+      case 'daily':
+        return 1;
+      case 'weekly':
+        return 7;
+      case 'custom':
+        final count = int.tryParse(_customCount.text.trim()) ?? 1;
+        final unit = _customUnit == 'weeks' ? 7 : 1;
+        return (count.clamp(1, 365) * unit).clamp(1, 365);
+      default:
+        return 0;
+    }
   }
 
   DateTime _tomorrowNine() {
@@ -806,6 +1041,60 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
               ),
             ),
             const Divider(),
+            Text('Repeat', style: Theme.of(context).textTheme.labelLarge),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final entry in _repeatModes.entries)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(entry.value),
+                        selected: _repeat == entry.key,
+                        onSelected: (_) =>
+                            setState(() => _repeat = entry.key),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (_repeat == 'custom')
+              Row(
+                children: [
+                  SizedBox(
+                    width: 96,
+                    child: TextField(
+                      controller: _customCount,
+                      autofocus: true,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(3),
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: 'Every',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'days', label: Text('Days')),
+                        ButtonSegment(value: 'weeks', label: Text('Weeks')),
+                      ],
+                      selected: {_customUnit},
+                      onSelectionChanged: (selection) => setState(() {
+                        _customUnit = selection.first;
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+            const Divider(),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               dense: true,
@@ -844,7 +1133,7 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
               ? null
               : () => Navigator.pop(
                     context,
-                    (_selected!, _playSound),
+                    (_selected!, _playSound, _repeatDaysValue),
                   ),
           child: const Text('Set reminder'),
         ),
@@ -973,6 +1262,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             _BackgroundTile(repo: widget.repo),
             const Divider(),
             _PinTile(repo: widget.repo),
+            _RelockTile(repo: widget.repo),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.file_download_outlined),
@@ -1031,6 +1321,15 @@ class _PinGateState extends State<_PinGate> with WidgetsBindingObserver {
   bool? _pinSet;
   bool _locked = false;
 
+  /// Set when the app reaches a not-visible state (hidden/paused/detached)
+  /// and consumed on the next `resumed`. A sticky flag is required because
+  /// returning from the background replays intermediate states first —
+  /// `hidden -> inactive -> resumed` — so "what state came right before
+  /// resumed" cannot distinguish a real backgrounding from a focus bounce.
+  /// The keyboard-dismiss bounce (OEM skins) only ever emits
+  /// `inactive -> resumed` and never reaches hidden, so it stays filtered.
+  bool _leftForeground = false;
+
   @override
   void initState() {
     super.initState();
@@ -1062,18 +1361,36 @@ class _PinGateState extends State<_PinGate> with WidgetsBindingObserver {
     }
   }
 
-  @override
+@override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Re-lock on every return to the foreground. Full-screen system
-    // activities (file/ringtone pickers, the device-admin screen) count;
-    // in-app dialogs and bottom sheets only reach `inactive` and do not.
+    // Re-lock only after a real backgrounding, marked by reaching a
+    // not-visible state. Home/app-switch, screen-off and full-screen
+    // system activities (file/ringtone pickers, the device-admin screen)
+    // all pass through hidden or paused; focus flickers from dialogs and
+    // the soft keyboard do not. The re-lock itself is also gated by the
+    // "Re-lock on app switch" setting, read fresh so a settings change is
+    // honored immediately.
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _leftForeground = true;
+    }
     if (state != AppLifecycleState.resumed || _locked) return;
+    if (!_leftForeground) return;
+    _leftForeground = false;
     _recheckPin();
   }
 
   /// Re-queries instead of trusting the cached flag: a PIN may have been
   /// set or removed in settings during this session.
   Future<void> _recheckPin() async {
+    bool relock;
+    try {
+      relock = await _repo.getRelockOnResume();
+    } catch (_) {
+      relock = true; // Native bridge unavailable — behave conservatively.
+    }
+    if (!relock) return;
     final set = await _isPinSet();
     if (!mounted || !set || _locked) return;
     setState(() {
@@ -1432,6 +1749,59 @@ class _PinTileState extends State<_PinTile> {
       trailing: _set
           ? const Icon(Icons.check_circle_outline)
           : const Icon(Icons.chevron_right),
+    );
+  }
+}
+
+/// Settings row controlling whether returning from the background
+/// re-locks the PIN gate. Default on; when off, the gate only engages
+/// on a cold app start.
+class _RelockTile extends StatefulWidget {
+  const _RelockTile({required this.repo});
+  final NotesRepository repo;
+
+  @override
+  State<_RelockTile> createState() => _RelockTileState();
+}
+
+class _RelockTileState extends State<_RelockTile> {
+  bool _relock = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final value = await widget.repo.getRelockOnResume();
+      if (!mounted) return;
+      setState(() => _relock = value);
+    } catch (_) {}
+  }
+
+  Future<void> _toggle(bool value) async {
+    setState(() => _relock = value);
+    try {
+      await widget.repo.setRelockOnResume(value);
+    } catch (_) {
+      if (mounted) setState(() => _relock = !value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      secondary: const Icon(Icons.screen_lock_portrait),
+      title: const Text('Re-lock on app switch'),
+      subtitle: Text(
+        _relock
+            ? 'The PIN is asked again after leaving the app.'
+            : 'PIN only asked when the app is opened fresh.',
+      ),
+      value: _relock,
+      onChanged: _toggle,
     );
   }
 }

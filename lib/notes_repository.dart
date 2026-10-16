@@ -21,8 +21,10 @@ class NotesRepository {
   Future<void> updateNote(String id, String text) => _channel
       .invokeMethod('updateNote', {'id': id, 'text': text});
 
-  Future<void> deleteNote(String id) =>
-      _channel.invokeMethod('deleteNote', {'id': id});
+  /// Deletes a note (also cancels its pending alarm and reminder card
+/// natively). Resolves false when the id was not found.
+Future<bool> deleteNote(String id) async =>
+    await _channel.invokeMethod<bool>('deleteNote', {'id': id}) ?? false;
 
   Future<void> setPinned(String id, bool pinned) =>
       _channel.invokeMethod('setPinned', {'id': id, 'pinned': pinned});
@@ -31,16 +33,29 @@ class NotesRepository {
   Future<void> setNoteColor(String id, int colorIndex) =>
       _channel.invokeMethod('setNoteColor', {'id': id, 'color': colorIndex});
 
-  /// Sets (or replaces) the one-shot reminder on a note. Native side
-  /// schedules an exact AlarmManager alarm that posts a notification.
-  /// [silent] fires it without sound (banner only).
-  Future<void> setReminder(String id, DateTime at, {bool silent = false}) =>
+  /// Marks a note done (or clears it). Reminder clearing is handled by the
+  /// caller so it can show a user-visible confirmation.
+  Future<void> setDone(String id, bool done) =>
+      _channel.invokeMethod('setDone', {'id': id, 'done': done});
+
+  /// Sets (or replaces) the reminder on a note. Native side schedules an
+  /// exact AlarmManager alarm that posts a notification; when [silent] it
+  /// fires without sound (banner only). [repeatDays] > 0 makes the reminder
+  /// recurring — the native receiver advances and re-arms it on every fire
+  /// (1 = daily, 7 = weekly, N = every N days).
+  Future<void> setReminder(
+    String id,
+    DateTime at, {
+    bool silent = false,
+    int repeatDays = 0,
+  }) =>
       _channel.invokeMethod(
         'setReminder',
         {
           'id': id,
           'atMillis': at.millisecondsSinceEpoch,
           'silent': silent,
+          'repeatDays': repeatDays,
         },
       );
 
@@ -129,6 +144,15 @@ class NotesRepository {
   Future<bool> isPinSet() async {
     return await _channel.invokeMethod<bool>('isPinSet') ?? false;
   }
+
+  /// Whether returning from the background re-locks the PIN gate
+  /// (default true). When off, the gate only engages on a cold start.
+  Future<bool> getRelockOnResume() async {
+    return await _channel.invokeMethod<bool>('getRelockOnResume') ?? true;
+  }
+
+  Future<void> setRelockOnResume(bool value) =>
+      _channel.invokeMethod('setRelockOnResume', {'value': value});
 
   /// Stores a new PIN (4-8 digits) natively as a salted hash.
   Future<void> setPin(String pin) =>
