@@ -49,3 +49,6 @@ app.*.map.json
 
 # AI session logs (not source)
 session-ses_*.md
+
+# Generated icon-pipeline artifacts (regenerate with: python tool/make_icon.py)
+tool/out/
