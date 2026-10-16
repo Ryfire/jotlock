@@ -1928,7 +1928,7 @@ const List<_SupportLink> _supportLinks = [
   ),
 ];
 
-const String _sourceUrl = 'https://github.com/CornMuffinThePapaya/jotlock';
+const String _sourceUrl = 'https://github.com/Ryfire/jotlock';
 
 /// In-app About page: developer note, support links, source code, version.
 class AboutPage extends StatefulWidget {
