@@ -40,6 +40,11 @@ any custom date and time. When it fires you get a heads-up with your sound
 Export all notes as JSON or readable text, import a JSON backup to merge (duplicates
 skipped) — handy for moving to a new phone.
 
+### Color-code your priorities
+Long-press any note and tap a swatch — seven colors (red, orange, yellow, green, blue,
+purple, teal) tint the note card so pressing items stand out while you scroll. Colors
+carry across JSON backups, work in light and dark themes, and none is the default.
+
 ---
 
 ## Features
@@ -53,6 +58,7 @@ skipped) — handy for moving to a new phone.
 | **Reminder sound** | Pick any system notification sound globally, or mark individual reminders silent. |
 | **Background keep-alive** | One-time "Allow" makes the capture card and reminders reliable through doze. |
 | **Pin notes** | Pinned notes float to the top with a badge. |
+| **Priority colors** | Long-press a note and pick from a 7-color palette — the card gets a matching tint so priorities are visible while scrolling. Survives backups. |
 | **App PIN (optional)** | A 4–8 digit PIN asked when opening the app. Stored as a salted hash — lock-screen capture stays instant. |
 | **Search** | Case-insensitive search over all notes. |
 | **Copy / share** | Copy any note to the clipboard, or share it out. JotLock also accepts text sent **in** from the share sheet and the text-selection menu. |
@@ -104,7 +110,7 @@ The reminder sound itself (what "play sound" uses) is set in Settings →
 ### In the app
 
 - **Tap a note** to edit · **Copy** / **Delete** icons on each note
-- **Long-press** for the full menu: *Edit · Pin · Copy · Remind me… · Share · Delete*
+- **Long-press** for the full menu: *Edit · Pin · Copy · Remind me… · Priority color · Share · Delete*
 - **Magnifier** to search · **＋ New note** to add
 - **Info icon** — About & support: a note from the developer, donation links, and the source code
 
