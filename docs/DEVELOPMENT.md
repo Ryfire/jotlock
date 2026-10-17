@@ -14,17 +14,56 @@ flutter pub get
 flutter run                      # debug on a connected device
 flutter test                     # unit + widget tests
 flutter analyze
-flutter build apk --release      # debug-signed release build
+flutter build apk --release      # release-key signed (debug key if no key.properties)
 ```
 
 ### Signing
 
-All builds (debug and release) are signed with the standard Android **debug
-key** (`~/.android/debug.keystore`), so a locally built APK always installs
-over another locally built one. Notes: installing over a Play-store release
-signed with a different key requires uninstalling first, which wipes app
-data — export notes from the in-app JSON/backup option before switching
-between differently-signed builds.
+Release builds are signed with the real release keystore when
+`android/key.properties` exists, and fall back to the standard Android
+**debug key** (`~/.android/debug.keystore`) when it doesn't — so a fresh
+clone always builds, and locally built APKs still install over another
+locally built one until real signing is set up.
+
+**Release keystore** (never commit it, never lose it):
+
+| | |
+|---|---|
+| File | `C:\Users\Ryfire\keystores\jotlock-release.jks` — deliberately **outside the repo** |
+| Alias | `jotlock` |
+| Subject | `CN=Jamey R, OU=dev, O=RyfireApps, C=US` |
+| Valid until | 2054 (10,000 days) |
+| SHA-256 | `66:D4:5C:E1:4E:E8:3A:10:AC:8B:26:99:EE:86:CC:CA:00:1C:60:EC:2C:47:A3:BC:B6:3E:5A:A3:CC:F1:CF:DA` |
+
+Credentials live in `android/key.properties` (gitignored): `storePath`,
+`storePassword`, `keyAlias`, `keyPassword`. `android/app/build.gradle.kts`
+loads that file and defines the `release` signing config from it.
+
+**Backup is critical.** For GitHub-Releases distribution this keystore is
+the app's permanent identity — losing the `.jks` and its password means no
+update can ever be installed over the current one. Keep a copy of the
+keystore file *and* the password in a second location (cloud + password
+manager). If you ever move to Google Play, Play App Signing holds the
+install key and this keystore merely becomes the (replaceable) upload key.
+
+**First signed release migration:** installs of debug-signed builds can't
+accept an update signed with the release key — Android requires
+uninstalling first, which wipes app data. Announce it in the release notes
+and tell users to export notes via the in-app JSON backup before upgrading.
+
+### F-Droid notes
+
+F-Droid builds apps **from source** (submission is an "RFP" at
+`gitlab.com/fdroid/rfp` linking the repo; volunteers write the packaging
+metadata). Two signing consequences:
+
+- F-Droid signs its builds with **their own key** by default, so F-Droid
+  builds won't install over a GitHub-signed APK (uninstall + data wipe,
+  same warning as above).
+- The reproducible-builds route lets F-Droid publish an APK with the
+  developer's own signature — the fingerprint above is what goes in the
+  metadata (`Binaries:` flow). Optional; pursue only if install-compat
+  between GitHub and F-Droid builds matters.
 
 ## Architecture
 

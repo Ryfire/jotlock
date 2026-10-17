@@ -50,5 +50,11 @@ app.*.map.json
 # AI session logs (not source)
 session-ses_*.md
 
+# Release signing secrets — keystore lives outside the repo
+# (C:\Users\Ryfire\keystores\jotlock-release.jks); never commit these.
+android/key.properties
+*.jks
+*.keystore
+
 # Generated icon-pipeline artifacts (regenerate with: python tool/make_icon.py)
 tool/out/

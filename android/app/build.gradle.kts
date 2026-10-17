@@ -1,7 +1,19 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Release signing: android/key.properties (gitignored) points at the keystore,
+// which lives outside the repo. When the file is absent — a fresh clone, CI
+// without secrets — release builds fall back to the debug key, so a locally
+// built APK still installs over another locally built one.
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) FileInputStream(f).use { load(it) }
 }
 
 android {
@@ -31,11 +43,25 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (keystoreProperties["storePath"] != null) {
+            create("release") {
+                storeFile = file(keystoreProperties["storePath"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // No release keystore in this project; debug signing keeps local
-            // release builds installable alongside the debug variant.
-            signingConfig = signingConfigs.getByName("debug")
+            // Real keystore when key.properties exists; otherwise debug signing
+            // keeps local release builds installable alongside the debug variant.
+            signingConfig = if (keystoreProperties["storePath"] != null)
+                signingConfigs.getByName("release")
+            else
+                signingConfigs.getByName("debug")
         }
     }
 }
