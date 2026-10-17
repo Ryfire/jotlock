@@ -1,0 +1,79 @@
+name: Bug report
+description: Report something that didn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! JotLock lives in some of the most
+        device-specific corners of Android (lock-screen notifications, inline
+        reply, exact alarms, force-lock), so the device details below really
+        matter — they're often the difference between a fix and a dead end.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: What part of JotLock?
+      options:
+        - Lock-screen card (Write note button)
+        - Keyguard / PIN prompt before the capture screen
+        - Inline Jot (notification shade)
+        - Reminders (firing, sound, lock-screen visibility)
+        - Re-lock after saving / force-lock
+        - App PIN gate
+        - Checklists
+        - Backup / export / import
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone model
+      placeholder: e.g. Moto G Stylus 5G (2023)
+    validations:
+      required: true
+  - type: input
+    id: android-version
+    attributes:
+      label: Android version
+      placeholder: e.g. Android 14
+    validations:
+      required: true
+  - type: input
+    id: skin
+    attributes:
+      label: System skin (if you know it)
+      placeholder: e.g. stock Android, Samsung One UI 6, Xiaomi HyperOS
+  - type: input
+    id: app-version
+    attributes:
+      label: JotLock version
+      placeholder: e.g. 1.4.0
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you expected vs what actually happened. Screenshots welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open…
+        2. Tap…
+        3. …
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Quick checks
+      description: A few settings that explain most reports.
+      options:
+        - label: "Phone's Lock screen → Notifications is set to Show"
+        - label: "Battery optimization is off for JotLock (in-app Settings → Keep running in background)"
+        - label: "If this involves switching between differently-signed builds, I exported my notes first"

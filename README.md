@@ -304,6 +304,18 @@ revocable anytime via **Settings → Security → Device admin apps → JotLock*
 
 ---
 
+## Tested on
+
+| Device | Android | Status |
+|---|---|---|
+| Moto — primary development device | — | Lock-screen capture, inline Jot, reminders, and force-lock exercised daily |
+
+Running JotLock on something else? Tell us in
+[Discussions](../../discussions) — whether it works or not, device reports
+make the app better (and feed the F-Droid packaging later).
+
+---
+
 ## Building from source
 
 Flutter + Android SDK; see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup,

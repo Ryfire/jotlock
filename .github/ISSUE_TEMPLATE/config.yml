@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question, idea, or device report
+    url: https://github.com/Ryfire/jotlock/discussions
+    about: "Does JotLock work on your phone? Ask questions, share ideas, or report which device you're on — no bug report needed."
