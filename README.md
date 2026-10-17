@@ -203,6 +203,12 @@ a small donation keeps it free, open source, and ad-free.
 3. Complete every item on a note with a reminder and the reminder clears
    itself — done means done, recurring included.
 
+Plain lines in the editor, tappable checkboxes on the card:
+
+<p align="center">
+  <img src="screenshots/04_editor_checklist_raw.png" alt="Edit note dialog with raw [ ]/[x] checklist lines; the same note renders as tappable checkboxes on the card" width="380">
+</p>
+
 ### Reminders
 
 1. **Long-press a note** (or tap it → menu) → **Remind me…**
