@@ -306,9 +306,12 @@ revocable anytime via **Settings → Security → Device admin apps → JotLock*
 
 ## Tested on
 
-| Device | Android | Status |
-|---|---|---|
-| Moto — primary development device | — | Lock-screen capture, inline Jot, reminders, and force-lock exercised daily |
+JotLock is developed and exercised daily on one **Android 15** phone —
+lock-screen capture, inline Jot, the keyguard prompt, reminders, and
+force-lock are all verified there. Treat that as the compatibility baseline.
+Other OEM skins (Samsung One UI, Xiaomi HyperOS and friends) restyle lock
+screens and battery management aggressively, so expect some variation until
+it's reported and fixed.
 
 Running JotLock on something else? Tell us in
 [Discussions](../../discussions) — whether it works or not, device reports
