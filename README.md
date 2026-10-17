@@ -180,6 +180,13 @@ a small donation keeps it free, open source, and ad-free.
 3. Depending on your *After saving* setting the phone locks instantly, goes home,
    or stays put — the next wake is always the lock screen, never the app.
 
+With *Stay on the confirmation*, saving hands you the choice — **Lock screen**
+or **Go home**, or just let the screen turn off:
+
+<p align="center">
+  <img src="screenshots/24_note_saved_confirmation.png" alt="The Note saved confirmation screen with Lock screen and Go home buttons" width="380">
+</p>
+
 > **Why the PIN prompt?** If your phone uses a PIN/fingerprint, Android asks for a
 > quick confirmation before showing the capture screen — an OS security rule for
 > every app that surfaces over the lock screen, not a JotLock setting. It cuts both
