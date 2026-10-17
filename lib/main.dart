@@ -1915,16 +1915,18 @@ class _SupportLink {
 }
 
 const String _aboutMessage =
-    'Hi — JotLock is made by one person who wanted a notes app that never '
-    'gets in the way: jot a thought from the lock screen, lock the phone, '
-    'move on. If it saves you time too, a small donation keeps it free, '
+    'JotLock was created to put a feature-packed note suite in your pocket '
+    'without ever getting in the way. Jot a thought from the lock screen, '
+    'lock the phone, move on — or keep scrolling; the choice is yours. '
+    'The all-around organizer that\'s seldom seen but always there when you '
+    'need it. If it saves you time too, a small donation keeps it free, '
     'open source, and ad-free. Thank you!';
 
 const List<_SupportLink> _supportLinks = [
   _SupportLink(
-    'Donate',
-    'https://example.com/jotlock-donate',
-    icon: Icons.favorite_outline,
+    'Buy me a coffee',
+    'https://buymeacoffee.com/JameyR',
+    icon: Icons.local_cafe_outlined,
   ),
 ];
 
@@ -1971,18 +1973,12 @@ class _AboutPageState extends State<AboutPage> {
           Center(
             child: Column(
               children: [
-                Container(
+                Image.asset(
+                  'assets/images/jot_next_icon.png',
+                  key: const Key('about-next-mark'),
                   width: 96,
                   height: 96,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Icon(
-                    Icons.edit_note,
-                    size: 56,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
+                  filterQuality: FilterQuality.medium,
                 ),
                 const SizedBox(height: 12),
                 Text('JotLock', style: Theme.of(context).textTheme.titleLarge),
@@ -2006,6 +2002,7 @@ class _AboutPageState extends State<AboutPage> {
               trailing: const Icon(Icons.open_in_new, size: 18),
               onTap: () => _open(link.url),
             ),
+          const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.code),

@@ -355,6 +355,225 @@ BACKGROUND_XML = """<vector xmlns:android="http://schemas.android.com/apk/res/an
 """
 
 
+# ====================== "J on a note" (About mark) ==========================
+# Second glyph design: indigo squircle + off-white note sheet with a dog-eared
+# top-right corner + a bold round-capped "J". Currently used as the About-page
+# mark (assets/images/jot_next_icon.png); kept in this pipeline so it can
+# graduate to the launcher icon later with the same geometry and transforms.
+NEXT_SHEET = (312, 240, 712, 784)   # portrait note sheet, centered on canvas
+NEXT_SHEET_R = 44                   # sheet corner radius
+NEXT_CUT = 120                      # dog-ear size along top and right edges
+NEXT_HOOK_C = (512, 560)            # J hook: semicircle center (bottom of stem)
+NEXT_HOOK_R = 60
+NEXT_STEM_X = 572                   # stem x = hook's right end
+NEXT_STEM_TOP = 400
+NEXT_STROKE = 64                    # J stroke width
+SHEET_FILL = (0xF7, 0xF4, 0xEC)     # warm paper
+FOLD_FILL = (0xDD, 0xD7, 0xCB)      # folded flap, slightly shaded
+J_INK = IND_DARK                    # deep indigo, ties to the background
+# Pencil resting in the dog-ear notch, parallel to the crease with the same
+# 14-unit flush gap as the launcher icon's pencil-in-the-slot motif. Fully
+# visible (a half-buried pencil reads as an abstract dart).
+NEXT_PENCIL_REAR = (616, 220)
+NEXT_PENCIL_AXIS = (math.cos(math.pi / 4), math.sin(math.pi / 4))
+NEXT_PENCIL_LEN = 156            # rear end to tip apex
+NEXT_PENCIL_TIP = 40
+NEXT_PENCIL_HW = 17              # half width
+PENCIL_FILL = (0xFF, 0xFF, 0xFF)
+
+
+def next_pencil_points():
+    ux, uy = NEXT_PENCIL_AXIS
+    nx, ny = -uy, ux             # perpendicular (width direction)
+    rx, ry = NEXT_PENCIL_REAR
+    L, tip, hw = NEXT_PENCIL_LEN, NEXT_PENCIL_TIP, NEXT_PENCIL_HW
+    apex = (rx + ux * L, ry + uy * L)
+    tb = (rx + ux * (L - tip), ry + uy * (L - tip))
+    return [
+        (rx - nx * hw, ry - ny * hw),
+        (tb[0] - nx * hw, tb[1] - ny * hw),
+        apex,
+        (tb[0] + nx * hw, tb[1] + ny * hw),
+        (rx + nx * hw, ry + ny * hw),
+    ]
+
+
+def next_shapes(with_pencil=False):
+    """Sheet with cut corner, fold flap, J path, and the composition bbox."""
+    x0, y0, x1, y1 = NEXT_SHEET
+    cut_x = x1 - NEXT_CUT          # cut meets the top edge here
+    cut_y = y0 + NEXT_CUT          # cut meets the right edge here
+    # cut line: x - y = cut_x - y0 ; interior lies at smaller x - y
+    sheet = clip_half_plane(rounded_rect_points(NEXT_SHEET, NEXT_SHEET_R),
+                            lambda p: (cut_x - y0) - (p[0] - p[1]))
+    fold = [(cut_x, y0), (x1, cut_y), (cut_x, cut_y)]
+    cx, cy = NEXT_HOOK_C
+    r = NEXT_HOOK_R
+    j_pts = [(NEXT_STEM_X, NEXT_STEM_TOP), (NEXT_STEM_X, cy)]
+    n = 32
+    for i in range(1, n + 1):      # 0..180 deg through the bottom (+y)
+        t = math.pi * i / n
+        j_pts.append((cx + r * math.cos(t), cy + r * math.sin(t)))
+    shapes = {"sheet": sheet, "fold": fold, "j": j_pts}
+    if with_pencil:
+        shapes["pencil"] = next_pencil_points()
+    all_pts = sheet + fold + j_pts
+    if with_pencil:
+        all_pts += shapes["pencil"]
+    xs = [p[0] for p in all_pts]
+    ys = [p[1] for p in all_pts]
+    shapes["bbox"] = (min(xs), min(ys), max(xs), max(ys))
+    return shapes
+
+
+def render_next_icon(size_out, with_pencil=False):
+    """Render the J-on-note icon (squircle + sheet + J) as RGBA."""
+    sh = next_shapes(with_pencil)
+    tr, _k = legacy_transform(sh["bbox"])
+
+    img = linear_gradient(W, IND_LIGHT, IND_DARK).convert("RGBA")
+
+    # soft radial sheen, top-left (same treatment as the launcher icon)
+    sheen = Image.new("L", (W, W), 0)
+    sd = ImageDraw.Draw(sheen)
+    scx, scy, r = int(0.30 * W), int(0.24 * W), int(0.52 * W)
+    sd.ellipse([scx - r, scy - r, scx + r, scy + r], fill=SHEEN_ALPHA)
+    sheen = sheen.filter(ImageFilter.GaussianBlur(W // 9))
+    white = Image.new("RGBA", (W, W), (255, 255, 255, 255))
+    img.paste(white, (0, 0), sheen)
+
+    # clip everything to the squircle
+    squircle = rounded_rect_mask(S, (0, 0, S, S), int(0.223 * S))
+    img.putalpha(squircle)
+
+    sheet_mask = polygon_mask(S, [tr(p) for p in sh["sheet"]])
+    img.paste(Image.new("RGBA", (W, W), SHEET_FILL + (255,)), (0, 0),
+              sheet_mask)
+
+    # pencil first, so the fold flap painted next hides its rear end
+    if with_pencil:
+        pencil_mask = polygon_mask(S, [tr(p) for p in sh["pencil"]])
+        img.paste(Image.new("RGBA", (W, W), PENCIL_FILL + (255,)), (0, 0),
+                  pencil_mask)
+
+    fold_mask = polygon_mask(S, [tr(p) for p in sh["fold"]])
+    img.paste(Image.new("RGBA", (W, W), FOLD_FILL + (255,)), (0, 0),
+              fold_mask)
+
+    # J: thick stroke with round caps and round joints
+    stroke = Image.new("L", (W, W), 0)
+    sd = ImageDraw.Draw(stroke)
+    jpts = [(p[0] * SS, p[1] * SS) for p in map(tr, sh["j"])]
+    sd.line(jpts, fill=255, width=NEXT_STROKE * SS, joint="curve")
+    cap_r = NEXT_STROKE * SS / 2
+    for end in (jpts[0], jpts[-1]):
+        sd.ellipse([end[0] - cap_r, end[1] - cap_r,
+                    end[0] + cap_r, end[1] + cap_r], fill=255)
+    img.paste(Image.new("RGBA", (W, W), J_INK + (255,)), (0, 0), stroke)
+
+    return img.resize((size_out, size_out), Image.LANCZOS)
+
+
+def emit_next_foreground_xml(with_pencil=False):
+    """Adaptive-icon foreground for the J-on-note design (future launcher)."""
+    sh = next_shapes(with_pencil)
+    fs, tx, ty = adaptive_transform(sh["bbox"])
+    x0, y0, x1, y1 = NEXT_SHEET
+    r = NEXT_SHEET_R
+    cut_x = x1 - NEXT_CUT
+    cut_y = y0 + NEXT_CUT
+    cx, cy = NEXT_HOOK_C
+    rr = NEXT_HOOK_R
+    sheet_path = (f"M{fmt(x0 + r)},{fmt(y0)} H{fmt(cut_x)} "
+                  f"L{fmt(x1)},{fmt(cut_y)} V{fmt(y1 - r)} "
+                  f"A{fmt(r)},{fmt(r)} 0 0 1 {fmt(x1 - r)},{fmt(y1)} "
+                  f"H{fmt(x0 + r)} "
+                  f"A{fmt(r)},{fmt(r)} 0 0 1 {fmt(x0)},{fmt(y1 - r)} "
+                  f"V{fmt(y0 + r)} "
+                  f"A{fmt(r)},{fmt(r)} 0 0 1 {fmt(x0 + r)},{fmt(y0)} Z")
+    j_path = (f"M{fmt(NEXT_STEM_X)},{fmt(NEXT_STEM_TOP)} "
+              f"L{fmt(NEXT_STEM_X)},{fmt(cy)} "
+              f"A{fmt(rr)},{fmt(rr)} 0 0 1 {fmt(cx - rr)},{fmt(cy)}")
+    pencil_path = ""
+    if with_pencil:
+        pencil_path = (f"<!-- pencil resting in the notch -->\n"
+                       f"        <path\n"
+                       f"            android:fillColor=\"#FFFFFFFF\"\n"
+                       f"            android:pathData=\"{path_poly(sh['pencil'])}\" />\n"
+                       f"        ")
+    xml = f"""<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- JotLock "J on a note" mark: off-white dog-eared sheet with an
+         indigo J, on the indigo gradient. Geometry lives in a 1024x1024
+         design space; the group maps it into the 108dp viewport and keeps
+         it inside the 66dp safe zone. Regenerate with: python tool/make_icon.py -->
+    <group
+        android:scaleX="{fs:.6f}"
+        android:scaleY="{fs:.6f}"
+        android:translateX="{tx:.2f}"
+        android:translateY="{ty:.2f}">
+        <!-- sheet with dog-eared top-right corner -->
+        <path
+            android:fillColor="#FFF7F4EC"
+            android:pathData="{sheet_path}" />
+        {pencil_path}<!-- folded flap -->
+        <path
+            android:fillColor="#FFDDD7CB"
+            android:pathData="{path_poly(sh['fold'])}" />
+        <!-- J monogram -->
+        <path
+            android:strokeColor="#FF303F9F"
+            android:strokeWidth="{fmt(NEXT_STROKE)}"
+            android:strokeLineCap="round"
+            android:pathData="{j_path}" />
+    </group>
+</vector>
+"""
+    return xml
+
+
+def emit_next_design():
+    """Render + emit every artifact for the J-on-note design."""
+    os.makedirs(OUT, exist_ok=True)
+    master = render_next_icon(S)
+    master.save(os.path.join(OUT, "jot_next_1024.png"))
+    master.resize((512, 512), Image.LANCZOS).save(
+        os.path.join(OUT, "jot_next_512.png"))
+
+    for name, bg in (("dark", (28, 27, 31)), ("light", (250, 250, 250))):
+        strip = Image.new("RGB", (5 * 200 + 60, 220), bg)
+        for i, px in enumerate((48, 72, 96, 144, 192)):
+            ic = master.resize((px, px), Image.LANCZOS)
+            strip.paste(ic, (30 + i * 200 + (192 - px) // 2,
+                             110 - px // 2), ic)
+        strip.save(os.path.join(OUT, f"jot_next_preview_{name}.png"))
+
+    with open(os.path.join(OUT, "jot_next_foreground.xml"), "w") as f:
+        f.write(emit_next_foreground_xml())
+
+    # pencil variant (candidate refinement of the mark)
+    master_p = render_next_icon(S, with_pencil=True)
+    master_p.save(os.path.join(OUT, "jot_next_pencil_1024.png"))
+    master_p.resize((512, 512), Image.LANCZOS).save(
+        os.path.join(OUT, "jot_next_pencil_512.png"))
+    for name, bg in (("dark", (28, 27, 31)), ("light", (250, 250, 250))):
+        strip = Image.new("RGB", (5 * 200 + 60, 220), bg)
+        for i, px in enumerate((48, 72, 96, 144, 192)):
+            ic = master_p.resize((px, px), Image.LANCZOS)
+            strip.paste(ic, (30 + i * 200 + (192 - px) // 2,
+                             110 - px // 2), ic)
+        strip.save(os.path.join(OUT, f"jot_next_pencil_preview_{name}.png"))
+    with open(os.path.join(OUT, "jot_next_pencil_foreground.xml"), "w") as f:
+        f.write(emit_next_foreground_xml(with_pencil=True))
+
+    print("next-design bbox:",
+          tuple(round(v, 1) for v in next_shapes()["bbox"]))
+    print("next-design outputs written to", OUT)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     global GLYPH_SHAPES
@@ -394,3 +613,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    emit_next_design()

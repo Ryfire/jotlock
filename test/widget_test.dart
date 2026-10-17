@@ -394,4 +394,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('JotLock is locked'), findsOneWidget);
   });
+
+  testWidgets('about page shows the next-gen mark and the updated message',
+      (tester) async {
+    mockNotesChannels();
+    await tester.pumpWidget(const MaterialApp(home: AboutPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('about-next-mark')), findsOneWidget);
+    expect(find.textContaining('feature-packed note suite'), findsOneWidget);
+    expect(find.textContaining('all-around organizer'), findsOneWidget);
+    expect(find.textContaining('If it saves you time too'), findsOneWidget);
+    // The old opening line is gone.
+    expect(find.textContaining('made by one person'), findsNothing);
+  });
 }
