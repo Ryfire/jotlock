@@ -1,0 +1,14 @@
+JotLock is a fast, no-nonsense notes app built around one idea: all the magic starts from the lock screen. A persistent Quick note notification puts a Write note button there, an inline Jot field waits in the notification shade, and per-note reminders always play your sound but never clutter your lock screen.
+
+Features:
+* Quick note from the lock screen - capture a thought in seconds
+* Inline Jot reply straight from the notification shade
+* Reminders with exact alarms: once, daily, weekly, or custom repeat
+* Checklists with [ ] / [x] syntax and progress counts
+* Priority colors, pinning, copy and share
+* Optional App PIN to keep notes private
+* Search as you type
+* JSON and text export, JSON import - your data stays yours
+* Choose what happens after saving: lock the phone, go home, or stay on the confirmation
+
+Free, open source (MIT), and ad-free. No accounts, no cloud, no INTERNET permission: notes physically have nowhere to go but the device.

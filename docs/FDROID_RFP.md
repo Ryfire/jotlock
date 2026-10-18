@@ -41,7 +41,13 @@ The Gradle config falls back to debug signing when no release keystore is
 present, so upstream builds and fdroidserver signing coexist cleanly.
 
 **Versioning:** git tags `v1.x.y` (UpdateCheckMode: Tags). Current release:
-v1.4.0 (versionCode 8).
+v1.4.0 (versionCode 8), tagged and released on GitHub
+(<https://github.com/Ryfire/jotlock/releases>).
+
+**Fastlane metadata:** the repo ships `fastlane/metadata/android/en-US/`
+(title, short/full descriptions, changelogs for versionCodes 6–8, icon,
+8 phone screenshots) plus a ready-to-adapt packaging recipe at
+`metadata/com.ryfire.jotlock.yml` in the repo root.
 
 **Developer notes for the packager:**
 
@@ -49,5 +55,6 @@ v1.4.0 (versionCode 8).
   (includes a signing section and F-Droid notes)
 - The app declares exactly one device-admin policy, `force-lock`
   (used only for opt-in lock-after-saving); `INTERNET` is not requested
-- Reminder scheduling uses exact alarms (`SCHEDULE_EXACT_ALARM`), with a
-  one-time opt-in background keep-alive for reliability
+- Reminder scheduling uses exact alarms (`SCHEDULE_EXACT_ALARM` /
+  `USE_EXACT_ALARM`), with a one-time opt-in background keep-alive for
+  reliability

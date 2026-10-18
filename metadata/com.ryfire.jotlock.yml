@@ -1,0 +1,58 @@
+Categories:
+  - Writing
+License: MIT
+AuthorName: Ryfire
+WebSite: https://github.com/Ryfire/jotlock
+SourceCode: https://github.com/Ryfire/jotlock
+IssueTracker: https://github.com/Ryfire/jotlock/issues
+Changelog: https://github.com/Ryfire/jotlock/releases
+
+Name: JotLock
+Summary: Lock-screen notes and reminders — jot it, lock it.
+Description: |-
+    JotLock is a fast, no-nonsense notes app built around one idea: all the magic
+    starts from the lock screen. A persistent Quick note notification puts a
+    Write note button there, an inline Jot field waits in the notification shade,
+    and per-note reminders always play your sound but never clutter your lock
+    screen.
+
+    Features:
+
+    * Quick note from the lock screen — capture a thought in seconds
+    * Inline Jot reply straight from the notification shade
+    * Reminders with exact alarms: once, daily, weekly, or custom repeat
+    * Checklists with [ ] / [x] syntax and progress counts
+    * Priority colors, pinning, copy and share
+    * Optional App PIN to keep notes private
+    * Search as you type
+    * JSON and text export, JSON import — your data stays yours
+    * Choose what happens after saving: lock the phone, go home, or stay on the confirmation
+
+    Free, open source (MIT), and ad-free. No accounts, no cloud, no INTERNET
+    permission: notes physically have nowhere to go but the device.
+
+AntiFeatures: (None)
+
+RepoType: git
+Repo: https://github.com/Ryfire/jotlock
+
+Builds:
+  - versionName: 1.4.0
+    versionCode: 8
+    commit: v1.4.0
+    subdir: android
+    submodules: true
+    gradle:
+      - yes
+    output: build/app/outputs/flutter-apk/app-release.apk
+    rm:
+      - ios
+    prebuild: echo "flutter.buildMode=release" >> gradle.properties
+    build:
+      - $$Flutter$$/bin/flutter build apk --release
+    ndk: r27
+
+AutoUpdateMode: Version v%v
+UpdateCheckMode: Tags v[\d.]+
+CurrentVersion: 1.4.0
+CurrentVersionCode: 8

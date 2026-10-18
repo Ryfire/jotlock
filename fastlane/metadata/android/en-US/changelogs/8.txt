@@ -1,0 +1,3 @@
+* Reminders: once, daily, weekly, or fully custom repeat intervals
+* Play-sound toggle per reminder - ring or quiet banner
+* Pick date & time for exact scheduling

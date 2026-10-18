@@ -1,0 +1,2 @@
+* Optional App PIN: salted SHA-256 PIN gate on the management UI, re-locks on backgrounding
+* Priority colors: 7-color palette per note via long-press; card tints in the list
