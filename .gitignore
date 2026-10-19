@@ -58,3 +58,8 @@ android/key.properties
 
 # Generated icon-pipeline artifacts (regenerate with: python tool/make_icon.py)
 tool/out/
+
+# Local tooling / session artifacts (never published)
+.opencode/
+.playwright-mcp/
+curated screenshots/

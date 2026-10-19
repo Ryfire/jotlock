@@ -7,6 +7,7 @@ SourceCode: https://github.com/Ryfire/jotlock
 IssueTracker: https://github.com/Ryfire/jotlock/issues
 Changelog: https://github.com/Ryfire/jotlock/releases
 
+AutoName: JotLock
 Name: JotLock
 Summary: Lock-screen notes and reminders — jot it, lock it.
 Description: |-
@@ -26,12 +27,11 @@ Description: |-
     * Optional App PIN to keep notes private
     * Search as you type
     * JSON and text export, JSON import — your data stays yours
-    * Choose what happens after saving: lock the phone, go home, or stay on the confirmation
+    * Choose what happens after saving: lock the phone, go home, or stay on the
+      confirmation
 
     Free, open source (MIT), and ad-free. No accounts, no cloud, no INTERNET
     permission: notes physically have nowhere to go but the device.
-
-AntiFeatures: (None)
 
 RepoType: git
 Repo: https://github.com/Ryfire/jotlock
@@ -39,18 +39,21 @@ Repo: https://github.com/Ryfire/jotlock
 Builds:
   - versionName: 1.4.0
     versionCode: 8
-    commit: v1.4.0
-    subdir: android
-    submodules: true
-    gradle:
-      - yes
+    commit: eedd62b57cf7b690d0604729df23fb932a64df66
     output: build/app/outputs/flutter-apk/app-release.apk
+    srclibs:
+      - flutter@3.47.6
     rm:
       - ios
-    prebuild: echo "flutter.buildMode=release" >> gradle.properties
+    prebuild:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get
+    scandelete:
+      - .pub-cache
     build:
-      - $$Flutter$$/bin/flutter build apk --release
-    ndk: r27
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter build apk --release
 
 AutoUpdateMode: Version v%v
 UpdateCheckMode: Tags v[\d.]+
