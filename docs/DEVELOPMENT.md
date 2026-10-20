@@ -111,6 +111,8 @@ foreground service, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` — the
 rationale sections in this document are the answers. Their
 signature-continuity check pins every update to the same key recorded at
 inclusion, so the keystore-backup rule above is doubly binding here.
+Pre-answered submission template:
+[IZZY_INCLUSION_ANSWERS.md](IZZY_INCLUSION_ANSWERS.md).
 
 **F-Droid main** — builds apps **from source** and signs with **their own
 key**, so F-Droid builds won't install over a GitHub-signed APK
