@@ -2,6 +2,10 @@
 
 **Capture notes from the Android lock screen — jot it, lock it.**
 
+[![Release](https://img.shields.io/github/v/release/Ryfire/jotlock)](../../releases)
+[![CI](https://github.com/Ryfire/jotlock/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 <p align="center">
   <img src="screenshots/15_dark_hero.png" alt="JotLock notes list in dark mode — checklists, recurring reminders, priority colors" width="380">
 </p>
@@ -162,13 +166,28 @@ a small donation keeps it free, open source, and ad-free.
 
 ---
 
+## Install
+
+Grab the APK from [Releases](../../releases) — every release attaches four:
+
+| APK | Pick it for |
+|---|---|
+| `JotLock-v…-arm64-v8a.apk` | Most phones (64-bit ARM) |
+| `JotLock-v…-armeabi-v7a.apk` | Older 32-bit phones |
+| `JotLock-v…-x86_64.apk` | Emulators, x86 devices |
+| `JotLock-v….apk` (universal) | Any device — biggest download, all CPUs in one file |
+
+**Automatic updates:** [Obtainium](https://github.com/ImranR98/Obtainium) (FOSS) —
+install it, add this repo (`https://github.com/Ryfire/jotlock`), and updates arrive
+straight from Releases. The per-ABI APKs carry a higher version code than the
+universal one, so updates always install cleanly over what you started with.
+
 ## Getting started
 
-1. **Install** the APK from [Releases](../../releases) and open JotLock.
-2. **Allow notifications** when Android asks (Android 13+).
-3. Optional — for *Lock the phone* mode: pick it in Settings and activate the
+1. **Allow notifications** when Android asks (Android 13+).
+2. Optional — for *Lock the phone* mode: pick it in Settings and activate the
    device-admin prompt Android shows (see below).
-4. Recommended — Settings → **Keep running in background** → **Allow**, so the
+3. Recommended — Settings → **Keep running in background** → **Allow**, so the
    capture card and reminders stay reliable.
 
 ## How to use
