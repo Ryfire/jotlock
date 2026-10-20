@@ -328,13 +328,21 @@ revocable anytime via **Settings → Security → Device admin apps → JotLock*
 JotLock is developed and exercised daily on one **Android 15** phone —
 lock-screen capture, inline Jot, the keyguard prompt, reminders, and
 force-lock are all verified there. Treat that as the compatibility baseline.
+
+**Verified devices:**
+
+| Device | Android | Notes |
+|---|---|---|
+| Daily-driver phone (near-stock) | 15 | Baseline — every feature exercised daily |
+
 Other OEM skins (Samsung One UI, Xiaomi HyperOS and friends) restyle lock
 screens and battery management aggressively, so expect some variation until
 it's reported and fixed.
 
 Running JotLock on something else? Tell us in
 [Discussions](../../discussions) — whether it works or not, device reports
-make the app better (and feed the F-Droid packaging later).
+make the app better (and feed the F-Droid packaging later). Verified
+reports get a row in the table above; quirks get tracked as issues.
 
 ---
 
