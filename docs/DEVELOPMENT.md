@@ -43,27 +43,84 @@ loads that file and defines the `release` signing config from it.
 the app's permanent identity — losing the `.jks` and its password means no
 update can ever be installed over the current one. Keep a copy of the
 keystore file *and* the password in a second location (cloud + password
-manager). If you ever move to Google Play, Play App Signing holds the
-install key and this keystore merely becomes the (replaceable) upload key.
+manager). Google Play is **out of scope for now** (never shipped — see
+[PLAY_MIGRATION.md](PLAY_MIGRATION.md) for the parked plan). If ever
+pursued, Play App Signing holds a separate Google-managed install key, so
+Play would be another incompatible channel and this keystore would merely
+become the (replaceable) upload key.
 
 **First signed release migration:** installs of debug-signed builds can't
 accept an update signed with the release key — Android requires
 uninstalling first, which wipes app data. Announce it in the release notes
 and tell users to export notes via the in-app JSON backup before upgrading.
 
-### F-Droid notes
+### Distribution channels
 
-F-Droid builds apps **from source** (submission is an "RFP" at
-`gitlab.com/fdroid/rfp` linking the repo; volunteers write the packaging
-metadata). Two signing consequences:
+Android refuses to install an update whose signing key differs from the
+installed app's — switching to a differently-signed channel means
+uninstalling first (data wipe). Each key therefore creates a channel
+lineage:
 
-- F-Droid signs its builds with **their own key** by default, so F-Droid
-  builds won't install over a GitHub-signed APK (uninstall + data wipe,
-  same warning as above).
-- The reproducible-builds route lets F-Droid publish an APK with the
-  developer's own signature — the fingerprint above is what goes in the
-  metadata (`Binaries:` flow). Optional; pursue only if install-compat
-  between GitHub and F-Droid builds matters.
+| Channel | Signed by | Install-compatible with |
+|---|---|---|
+| GitHub Releases (primary) | `jotlock-release.jks` | Obtainium, IzzyOnDroid |
+| Obtainium | — (reads GitHub Releases directly) | GitHub, IzzyOnDroid |
+| IzzyOnDroid | — (mirrors our release APKs as-is, signature kept) | GitHub, Obtainium |
+| F-Droid main | F-Droid's own key | nothing — separate lineage |
+| Google Play | Google-managed key (out of scope for now) | nothing — separate lineage |
+
+Consequences:
+
+- GitHub / Obtainium / IzzyOnDroid are **one compatible channel** — users
+  switch freely between them without data loss. This keystore is that
+  channel's identity; losing it breaks all three at once.
+- F-Droid and (if ever) Play are separate lineages.
+
+**Obtainium** — nothing to submit; it tracks the GitHub Releases feed
+directly. Updates flow automatically as long as every release follows the
+convention established with v1.4.0: **attach all four APKs** (arm64-v8a,
+armeabi-v7a, x86_64, universal). The per-ABI splits carry Flutter's ABI
+versionCode offsets (1.4.0: universal 8, arm-v7a 1008, arm64 2008,
+x86_64 4008) — all higher than the universal, so a split installs cleanly
+over a universal install, but the reverse (split user → later
+universal-only release) is a versionCode downgrade Android blocks.
+Never publish a release without the splits, and split users stay on a
+clean update path forever. README should advertise it as an install path.
+
+**IzzyOnDroid** (`https://apt.izzysoft.de/fdroid/repo`) — an
+F-Droid-client-compatible store that mirrors developer-signed release
+APKs from GitHub, adding discoverability with zero build work. To request:
+open an issue at `codeberg.org/IzzyOnDroid/repodata` using the
+app-inclusion template, subject to the App Inclusion Policy
+(`izzyondroid.org/docs/general/AppInclusionPolicy`). **No minimum-age or
+months-maintained gate** (unlike F-Droid's 3-month rule — verified from
+the policy text 2026-10-19); the only time criterion is that apps *stale
+for 12+ months* get dropped, which doesn't apply here. Mechanics we
+already meet: FOSS (MIT), APKs on properly tagged GitHub releases (their
+update script polls those automatically), no ads/trackers/proprietary
+deps, no self-updater (no INTERNET permission at all), fastlane
+metadata, developer-signed release builds. **One real constraint:** the
+policy reserves ~30 MB per app (rule-of-thumb) — the 50.6 MB universal
+APK busts it. Measured `--split-per-abi` sizes (2026-10-19):
+armeabi-v7a 15.2 MB, arm64-v8a 17.6 MB, x86_64 19.1 MB — per-ABI splits
+on GitHub Releases are the Izzy-compatible form (arm64 alone fits
+comfortably; arm64+v7a ≈ 33 MB is exception territory). Expect screening
+questions about sensitive permissions — device admin (`force-lock`),
+exact alarms (`SCHEDULE_EXACT_ALARM` / `USE_EXACT_ALARM`), the specialUse
+foreground service, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` — the
+rationale sections in this document are the answers. Their
+signature-continuity check pins every update to the same key recorded at
+inclusion, so the keystore-backup rule above is doubly binding here.
+
+**F-Droid main** — builds apps **from source** and signs with **their own
+key**, so F-Droid builds won't install over a GitHub-signed APK
+(uninstall + data wipe). The reproducible-builds route would let F-Droid
+publish with the developer's own signature (the fingerprint above; the
+`Binaries:` flow), but the 2026-10-19 local double-build test showed
+non-deterministic output, so the first accepted build will use F-Droid
+signing. Resubmission is planned for ~mid-January 2027 once the 3-month
+maintenance policy is satisfied — see
+[FDROID_TEMPLATE_ANSWERS.md](FDROID_TEMPLATE_ANSWERS.md).
 
 ## Architecture
 
