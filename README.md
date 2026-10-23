@@ -46,6 +46,10 @@ nobody can write into your notes from a locked phone.
   <img src="screenshots/18_lockscreen_quicknote.png" alt="The Quick note card on the lock screen with a Write note button" width="380">
 </p>
 
+<p align="center">
+  <img src="screenshots/jotlock_demo2_trim_cropped.gif" alt="Recording: tapping Write note from the lock screen, jotting a note, saving, and the phone re-locks" width="380">
+</p>
+
 ### Capture from anywhere (inline Jot)
 
 While browsing any app, pull down the shade and tap **Jot** — a text field expands
@@ -286,6 +290,10 @@ anything anywhere — notes physically have nowhere to go but your device.
 
 <p align="center">
   <img src="screenshots/23_app_pin_gate.png" alt="The App PIN gate screen" width="300">
+</p>
+
+<p align="center">
+  <img src="screenshots/pin_video_showcase_cropped.gif" alt="Recording: setting the App PIN and the gate appearing when opening the app" width="300">
 </p>
 
 The 4–8 digit App PIN guards the note list only — lock-screen capture and the
