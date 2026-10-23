@@ -10,11 +10,18 @@
   <img src="screenshots/15_dark_hero.png" alt="JotLock notes list in dark mode — checklists, recurring reminders, priority colors" width="380">
 </p>
 
-JotLock is a fast, no-nonsense notes app built around one idea: all the magic
-starts from the lock screen. A persistent **Quick note** notification gives
-you a **Write note** button right there, so writing a note starts **from**
-the lock screen; an inline **Jot** field waits in the shade; and per-note
-**reminders** always play your sound but never clutter your lock screen.
+The failure mode JotLock is built around: a thought arrives, the phone is
+*right there* on the desk — but unlocking it, finding the app, tapping
+"new note" is three frictions too many, and by then the thought's gone.
+
+JotLock is built around one bet: the cheapest thought-to-text path is the
+lock screen itself. A persistent **Quick note** notification puts a
+**Write note** button right on the lock screen — tap, type, save, and you
+choose what happens next: the phone re-locks itself, goes home, or hands
+you the choice. While you're already inside another app, an inline **Jot**
+field in the notification shade captures text without leaving what you
+were doing. And per-note **reminders** always play your sound but never
+clutter your lock screen.
 
 One honest detail: tapping **Write note** asks for your PIN or fingerprint
 before the note screen opens — the same keyguard rule every app that surfaces
@@ -138,8 +145,20 @@ to look.
 ### Free, open source, and ad-free
 
 The info icon in the app bar opens **About & support** — a note from the
-developer, donation links, and the GitHub source. If JotLock saves you time,
-a small donation keeps it free, open source, and ad-free.
+developer, donation links, and the GitHub source.
+
+Where this stands: JotLock is an experiment, and it's genuinely unclear how
+far the concept stretches. Lock-screen capture might be a novelty for most
+people and a genuinely better match for a few — the ones who lose thoughts
+to the unlock-find-app friction. That's what this project is trying to find
+out. If that friction sounds familiar, try it and say where it breaks —
+[Discussions](../../discussions) takes reports either way, working or not.
+And if you run a capture system properly (GTD or otherwise): pushback
+wanted. Does capture-at-lock-screen fit your workflow, or does it just
+encourage unprocessed inbox pileup?
+
+If JotLock saves you time, a small donation keeps it free, open source, and
+ad-free.
 
 <p align="center">
   <img src="screenshots/09_about_support.png" alt="The About & support page" width="380">

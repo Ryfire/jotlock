@@ -66,3 +66,6 @@ curated screenshots/
 
 # GIF/video source assets (final GIFs are published in screenshots/)
 gif_make_video/
+
+# Local-only promo drafts (never published)
+docs/PROMO_DRAFTS.md
