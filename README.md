@@ -30,7 +30,7 @@ the security working: someone holding your locked phone can't jot anything
 into your notes.
 
 - **Capture from the lock screen** — tap **Write note** and start a note straight **from** the lock screen; the keyguard check (if you use one) keeps strangers out of your notes
-- **Re-locks itself** — when you're done, the phone goes back to locked, instantly
+- **After saving, your call** — the phone re-locks instantly, goes home, or hands you the choice on the confirmation screen (**Lock screen** / **Go home**) — set the default in Settings
 - **Private by design** — no accounts, no cloud, no internet permission. Notes never leave the device.
 - **Free and open source** — inspect every line.
 
@@ -43,8 +43,9 @@ Latest release: **v1.4.0** · Requires Android 7.0+
 ### Capture from the lock screen
 
 Tap the jot pencil and start writing straight from the lock screen — notes
-save without unlocking, and the phone re-locks itself the moment you're
-done. Unlocking, finding an app, waiting for it to load: gone. With a PIN or
+save without unlocking, and afterwards it's your call: re-lock the phone, go
+home, or pick on the confirmation screen (the default lives in Settings).
+Unlocking, finding an app, waiting for it to load: gone. With a PIN or
 fingerprint set, Android confirms it's you before the capture screen opens —
 an OS rule for every app that surfaces over the lock screen, and the reason
 nobody can write into your notes from a locked phone.
