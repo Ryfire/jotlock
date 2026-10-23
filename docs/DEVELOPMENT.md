@@ -111,8 +111,6 @@ foreground service, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` — the
 rationale sections in this document are the answers. Their
 signature-continuity check pins every update to the same key recorded at
 inclusion, so the keystore-backup rule above is doubly binding here.
-Pre-answered submission template:
-[IZZY_INCLUSION_ANSWERS.md](IZZY_INCLUSION_ANSWERS.md).
 
 **F-Droid main** — builds apps **from source** and signs with **their own
 key**, so F-Droid builds won't install over a GitHub-signed APK
@@ -121,8 +119,7 @@ publish with the developer's own signature (the fingerprint above; the
 `Binaries:` flow), but the 2026-10-19 local double-build test showed
 non-deterministic output, so the first accepted build will use F-Droid
 signing. Resubmission is planned for ~mid-January 2027 once the 3-month
-maintenance policy is satisfied — see
-[FDROID_TEMPLATE_ANSWERS.md](FDROID_TEMPLATE_ANSWERS.md).
+maintenance policy is satisfied.
 
 ## Architecture
 
