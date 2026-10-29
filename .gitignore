@@ -69,6 +69,10 @@ gif_make_video/
 
 # Local-only promo/submission drafts (never published)
 docs/PROMO_DRAFTS.md
+docs/DISTRIBUTION_ROUTES.md
 docs/FDROID_RFP.md
 docs/FDROID_TEMPLATE_ANSWERS.md
 docs/IZZY_INCLUSION_ANSWERS.md
+
+# Personal notes exports (never published)
+jotlock_backup_*.json

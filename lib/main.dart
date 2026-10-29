@@ -1908,10 +1908,11 @@ class _BackgroundTileState extends State<_BackgroundTile> {
 /// About page content — edit these three values to update what users see.
 /// Links open in the browser; the app itself stays offline.
 class _SupportLink {
-  const _SupportLink(this.label, this.url, {required this.icon});
+  const _SupportLink(this.label, this.url, {required this.icon, this.subtitle});
   final String label;
   final String url;
   final IconData icon;
+  final String? subtitle;
 }
 
 const String _aboutMessage =
@@ -1919,14 +1920,27 @@ const String _aboutMessage =
     'without ever getting in the way. Jot a thought from the lock screen, '
     'lock the phone, move on — or keep scrolling; the choice is yours. '
     'The all-around organizer that\'s seldom seen but always there when you '
-    'need it. If it saves you time too, a small donation keeps it free, '
-    'open source, and ad-free. Thank you!';
+    'need it. If it saves you time too, there are easy ways to say thanks — '
+    'free ones, or over coffee. Thank you!';
 
 const List<_SupportLink> _supportLinks = [
+  _SupportLink(
+    'Star JotLock on GitHub',
+    'https://github.com/Ryfire/jotlock',
+    icon: Icons.star_border,
+    subtitle: 'One tap — helps others find the app',
+  ),
+  _SupportLink(
+    'Say how it goes',
+    'https://github.com/Ryfire/jotlock/discussions',
+    icon: Icons.forum_outlined,
+    subtitle: 'Does it fit your workflow? Reports wanted either way',
+  ),
   _SupportLink(
     'Buy me a coffee',
     'https://buymeacoffee.com/JameyR',
     icon: Icons.local_cafe_outlined,
+    subtitle: 'Optional — keeps it free, open source, and ad-free',
   ),
 ];
 
@@ -1999,6 +2013,7 @@ class _AboutPageState extends State<AboutPage> {
               contentPadding: EdgeInsets.zero,
               leading: Icon(link.icon),
               title: Text(link.label),
+              subtitle: link.subtitle != null ? Text(link.subtitle!) : null,
               trailing: const Icon(Icons.open_in_new, size: 18),
               onTap: () => _open(link.url),
             ),

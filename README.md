@@ -146,7 +146,8 @@ to look.
 ### Free, open source, and ad-free
 
 The info icon in the app bar opens **About & support** — a note from the
-developer, donation links, and the GitHub source.
+developer, ways to give back (star the repo, share feedback, or donate), and
+the GitHub source.
 
 Where this stands: JotLock is an experiment, and it's genuinely unclear how
 far the concept stretches. Lock-screen capture might be a novelty for most
@@ -158,8 +159,15 @@ And if you run a capture system properly (GTD or otherwise): pushback
 wanted. Does capture-at-lock-screen fit your workflow, or does it just
 encourage unprocessed inbox pileup?
 
-If JotLock saves you time, a small donation keeps it free, open source, and
-ad-free.
+If JotLock saves you time, here are easy ways to give back — all optional,
+all appreciated:
+
+- **★ Star the repo** — free, and it's how people discover small FOSS apps
+- **Tell someone** — word of mouth is how they grow
+- **[Say how it goes](../../discussions)** — device reports and workflow
+  pushback wanted either way
+- **[Buy me a coffee](https://buymeacoffee.com/JameyR)** — if paying suits
+  you better: a small donation keeps it free, open source, and ad-free
 
 <p align="center">
   <img src="screenshots/09_about_support.png" alt="The About & support page" width="380">
@@ -185,7 +193,7 @@ ad-free.
 | **Copy / share** | Copy any note to the clipboard, or share it out. JotLock also accepts text sent **in** from the share sheet and the text-selection menu. |
 | **Export / import** | JSON backup (share it anywhere) and a readable text export. |
 | **Notification toggle** | Don't want the persistent card? Turn it off in settings; it returns on next launch. |
-| **About & support** | The info icon in the app bar opens a developer note, support links, and the GitHub source. |
+| **About & support** | The info icon in the app bar opens a developer note, ways to support the app, and the GitHub source. |
 | **Polish** | Material 3, light/dark, adaptive + themed icons, undo snackbar after deletes. |
 
 ---
@@ -277,7 +285,7 @@ The reminder sound itself (what "play sound" uses) is set in Settings →
 - **Tap a note** to edit · **Tap a checkbox** to check it off · **Copy** / **Delete** icons on each note
 - **Long-press** for the full menu: *Edit · Pin · Copy · Remind me… · Priority color · Share · Delete*
 - **Magnifier** to search · **＋ New note** to add
-- **Info icon** — About & support: a note from the developer, donation links, and the source code
+- **Info icon** — About & support: a note from the developer, ways to support the app, and the source code
 
 ---
 
