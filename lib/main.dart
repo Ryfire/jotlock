@@ -587,12 +587,19 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
 
   Future<void> _exportNotes() async {
     try {
+      final stamp = DateTime.now().toIso8601String().substring(0, 10);
+      final name = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => _ExportNameDialog(
+          title: 'Export notes (JSON)',
+          defaultName: 'jotlock_backup_$stamp',
+          extension: '.json',
+        ),
+      );
+      if (name == null || !mounted) return;
       final json = await _repo.getExportJson();
       final dir = await getTemporaryDirectory();
-      final stamp = DateTime.now().toIso8601String().substring(0, 10);
-      final file = File(
-        '${dir.path}${Platform.pathSeparator}jotlock_backup_$stamp.json',
-      );
+      final file = File('${dir.path}${Platform.pathSeparator}$name.json');
       await file.writeAsString(json);
       await SharePlus.instance.share(
         ShareParams(
@@ -610,15 +617,22 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
 
   Future<void> _exportNotesText() async {
     try {
+      final stamp = DateTime.now().toIso8601String().substring(0, 10);
+      final name = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => _ExportNameDialog(
+          title: 'Export notes (text)',
+          defaultName: 'jotlock_notes_$stamp',
+          extension: '.txt',
+        ),
+      );
+      if (name == null || !mounted) return;
       final json = await _repo.getExportJson();
       final notes =
           (jsonDecode(json) as List<dynamic>).whereType<Map>().map(Note.fromMap).toList();
       final text = notesToText(notes);
       final dir = await getTemporaryDirectory();
-      final stamp = DateTime.now().toIso8601String().substring(0, 10);
-      final file = File(
-        '${dir.path}${Platform.pathSeparator}jotlock_notes_$stamp.txt',
-      );
+      final file = File('${dir.path}${Platform.pathSeparator}$name.txt');
       await file.writeAsString(text);
       await SharePlus.instance.share(
         ShareParams(
@@ -1321,6 +1335,117 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
     final loc = MaterialLocalizations.of(context);
     final time = TimeOfDay.fromDateTime(dt).format(context);
     return '${loc.formatShortDate(dt)} · $time';
+  }
+}
+
+/// Characters file systems and common share targets reject in a file name,
+/// plus control characters — all stripped from a user-entered export name.
+final RegExp _illegalFileNameChars = RegExp(r'[\\/:*?"<>|\x00-\x1f]');
+
+/// Longest allowed export file name; the extension is added separately.
+const int _maxExportNameLength = 100;
+
+/// Cleans a user-entered export file name: replaces rejected characters
+/// with spaces, collapses whitespace runs, caps the length and drops
+/// trailing dots/spaces (some targets refuse those). Falls back to
+/// [fallback] when nothing usable remains. The extension is never part of
+/// the name — callers append it, so JSON backups stay re-importable.
+String sanitizeExportFileName(String raw, String fallback) {
+  var name = raw.replaceAll(_illegalFileNameChars, ' ');
+  name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (name.length > _maxExportNameLength) {
+    name = name.substring(0, _maxExportNameLength);
+  }
+  name = name.replaceAll(RegExp(r'[ .]+$'), '');
+  return name.isEmpty ? fallback : name;
+}
+
+/// Live counterpart of [sanitizeExportFileName] for the text field: strips
+/// rejected characters as they are typed or pasted. Length, whitespace
+/// collapsing and the trailing-dot rule are still applied on submit.
+final TextInputFormatter _exportNameCharFilter =
+    FilteringTextInputFormatter.allow(
+      RegExp(r'[^\\/:*?"<>|\x00-\x1f]'),
+      replacementString: ' ',
+    );
+
+/// Asks for the export file name before a backup is written or shared.
+/// Pops with the sanitized name, or null when cancelled. The extension is
+/// shown but not editable — it is fixed by the export type.
+class _ExportNameDialog extends StatefulWidget {
+  const _ExportNameDialog({
+    required this.title,
+    required this.defaultName,
+    required this.extension,
+  });
+
+  final String title;
+  final String defaultName;
+  final String extension;
+
+  @override
+  State<_ExportNameDialog> createState() => _ExportNameDialogState();
+}
+
+class _ExportNameDialogState extends State<_ExportNameDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.defaultName,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    // Select the whole default so typing overwrites it in one go.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _controller.text.length,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    Navigator.pop(
+      context,
+      sanitizeExportFileName(_controller.text, widget.defaultName),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => _submit(),
+        inputFormatters: [
+          _exportNameCharFilter,
+          LengthLimitingTextInputFormatter(_maxExportNameLength),
+        ],
+        decoration: InputDecoration(
+          suffixText: widget.extension,
+          helperText: 'The extension is added automatically.',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Export'),
+        ),
+      ],
+    );
   }
 }
 

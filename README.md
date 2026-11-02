@@ -34,7 +34,7 @@ into your notes.
 - **Private by design** — no accounts, no cloud, no internet permission. Notes never leave the device.
 - **Free and open source** — inspect every line.
 
-Latest release: **v1.5.0** · Requires Android 7.0+
+Latest release: **v1.6.0** · Requires Android 7.0+
 
 ---
 
@@ -117,8 +117,10 @@ carry across JSON backups, work in light and dark themes, and none is the defaul
 ### Backup in one tap
 
 Export all notes as JSON or readable text, import a JSON backup to merge (duplicates
-skipped) — handy for moving to a new phone. Checklists, repeat intervals, reminder
-times and colors all survive the round-trip.
+skipped) — handy for moving to a new phone. Before either export shares its file,
+JotLock asks what to call it: the suggested name carries today's date, and you can
+rename it freely (the extension is fixed for you). Checklists, repeat intervals,
+reminder times and colors all survive the round-trip.
 
 <p align="center">
   <img src="screenshots/22_export_import_dark.png" alt="Export and import options in the settings sheet" width="400">
@@ -191,7 +193,7 @@ all appreciated:
 | **App PIN (optional)** | A 4–8 digit PIN asked when opening the app. Stored as a salted hash — lock-screen capture stays instant. |
 | **Search** | Case-insensitive search over all notes, including checklist lines. |
 | **Copy / share** | Copy any note to the clipboard, or share it out. JotLock also accepts text sent **in** from the share sheet and the text-selection menu. |
-| **Export / import** | JSON backup (share it anywhere) and a readable text export. |
+| **Export / import** | JSON backup (share it anywhere) and a readable text export — both ask for a file name first. |
 | **Notification toggle** | Don't want the persistent card? Turn it off in settings; it returns on next launch. |
 | **About & support** | The info icon in the app bar opens a developer note, ways to support the app, and the GitHub source. |
 | **Polish** | Material 3, light/dark, adaptive + themed icons, undo snackbar after deletes. |
