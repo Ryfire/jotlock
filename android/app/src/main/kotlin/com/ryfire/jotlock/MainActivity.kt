@@ -200,12 +200,15 @@ class MainActivity : FlutterActivity() {
                         val repeatDays =
                             (call.argument<Number>("repeatDays")?.toInt() ?: 0)
                                 .coerceIn(0, 366)
+                        val repeatHours =
+                            (call.argument<Number>("repeatHours")?.toInt() ?: 0)
+                                .coerceIn(0, 24)
                         if (id.isEmpty() || at <= System.currentTimeMillis()) {
                             result.error("INVALID", "Bad reminder request", null)
                         } else if (NoteStore.getNote(this, id) == null) {
                             result.error("INVALID", "Note not found", null)
                         } else {
-                            NoteStore.setReminderAt(this, id, at, silent, repeatDays)
+                            NoteStore.setReminderAt(this, id, at, silent, repeatDays, repeatHours)
                             ReminderScheduler.schedule(this, id, at)
                             result.success(true)
                         }

@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:jotlock/note.dart';
 import 'package:jotlock/note_colors.dart';
+import 'package:jotlock/note_editor.dart';
 import 'package:jotlock/notes_repository.dart';
 
 void main() {
@@ -50,6 +51,12 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
   bool _loading = true;
   bool _notificationEnabled = true;
   bool _searching = false;
+
+  /// Multi-select mode: taps toggle selection instead of opening the
+  /// editor, the app bar offers bulk actions, and the tiles' trailing
+  /// actions stand down so stray taps can't delete or toggle.
+  bool _selecting = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
@@ -170,34 +177,159 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
     await _reload();
   }
 
+  /// Confirms, then deletes a single note — the trash icon and the
+  /// long-press menu both land here. The snackbar undo restores text, pin,
+  /// color and future reminders via the import path.
   Future<void> _delete(Note note) async {
-    final ok = await _repo.deleteNote(note.id);
-    if (!ok || !mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete note?'),
+        content: Text(
+          '"${_preview(note.text)}" will be deleted. You can undo right after.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _deleteNotes([note]);
+  }
+
+  /// Confirms with the count, then deletes every selected note in one go.
+  /// Exits selection mode before the work so the UI returns to normal.
+  Future<void> _deleteSelected() async {
+    final targets = _notes.where((n) => _selectedIds.contains(n.id)).toList();
+    if (targets.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Delete ${targets.length} note${targets.length == 1 ? '' : 's'}?',
+        ),
+        content: Text(
+          '${targets.length} note${targets.length == 1 ? '' : 's'} will be '
+          'deleted. You can undo right after.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    _exitSelectMode();
+    await _deleteNotes(targets);
+  }
+
+  /// Deletes the given notes (confirmation is the caller's job) and offers
+  /// one combined undo for however many actually went through.
+  Future<void> _deleteNotes(List<Note> notes) async {
+    final deleted = <Note>[];
+    for (final note in notes) {
+      if (await _repo.deleteNote(note.id)) deleted.add(note);
+    }
+    if (!mounted) return;
+    await _reload();
+    if (!mounted || deleted.isEmpty) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: const Text('Note deleted'),
+          content: Text(
+            'Deleted ${deleted.length} note${deleted.length == 1 ? '' : 's'}',
+          ),
           duration: const Duration(seconds: 8),
           action: SnackBarAction(
             label: 'Undo',
-            onPressed: () => _restoreDeleted(note),
+            onPressed: () => _restoreDeleted(deleted),
           ),
         ),
       );
-    await _reload();
   }
 
-  /// Puts [note] back by feeding its map through the import-merge path:
-  /// the id no longer exists after the delete, so it is added back whole
-  /// (text, pin, color, reminder fields) — no dedicated native endpoint.
-  Future<void> _restoreDeleted(Note note) async {
+  /// Short single-line preview for the delete confirmation.
+  String _preview(String text) {
+    final line = text.trim().split('\n').first.trim();
+    return line.length <= 80 ? line : '${line.substring(0, 80)}…';
+  }
+
+  void _enterSelectMode(Note note) {
+    setState(() {
+      _selecting = true;
+      _selectedIds
+        ..clear()
+        ..add(note.id);
+    });
+  }
+
+  void _exitSelectMode() {
+    setState(() {
+      _selecting = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelect(Note note) {
+    setState(() {
+      // remove() reports false when the id was absent — that's the add case.
+      if (!_selectedIds.remove(note.id)) _selectedIds.add(note.id);
+    });
+  }
+
+  /// Whether every currently visible note is selected.
+  bool get _allVisibleSelected =>
+      _displayNotes.isNotEmpty &&
+      _displayNotes.every((n) => _selectedIds.contains(n.id));
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_allVisibleSelected) {
+        _selectedIds.removeAll(_displayNotes.map((n) => n.id));
+      } else {
+        _selectedIds.addAll(_displayNotes.map((n) => n.id));
+      }
+    });
+  }
+
+  /// Puts deleted notes back by feeding their maps through the import-merge
+  /// path: the ids no longer exist after the delete, so they are added back
+  /// whole (text, pin, color, reminder fields) — no dedicated native
+  /// endpoint. Future reminders carry across; past ones the native merge
+  /// drops rather than firing immediately.
+  Future<void> _restoreDeleted(List<Note> notes) async {
     try {
-      await _repo.importNotes(jsonEncode([note.toMap()]));
+      await _repo.importNotes(
+        jsonEncode([for (final note in notes) note.toMap()]),
+      );
       await _reload();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Note restored')),
+        SnackBar(
+          content: Text(
+            'Restored ${notes.length} note${notes.length == 1 ? '' : 's'}',
+          ),
+        ),
       );
     } catch (_) {}
   }
@@ -216,13 +348,21 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
       context: context,
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
-        child: Column(
+        // The menu grew long enough to overflow small screens — scroll
+        // instead of clipping.
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Edit'),
               onTap: () => Navigator.pop(sheetContext, 'edit'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.checklist),
+              title: const Text('Select'),
+              onTap: () => Navigator.pop(sheetContext, 'select'),
             ),
             ListTile(
               leading: Icon(
@@ -293,6 +433,7 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
               onTap: () => Navigator.pop(sheetContext, 'delete'),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -305,6 +446,8 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
     switch (action) {
       case 'edit':
         await _edit(note);
+      case 'select':
+        _enterSelectMode(note);
       case 'pin':
         await _togglePin(note);
       case 'copy':
@@ -328,17 +471,19 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
         initial: note.hasReminder ? note.reminderTime : null,
         initialSilent: note.reminderSilent,
         initialRepeatDays: note.repeatDays,
+        initialRepeatHours: note.repeatHours,
       ),
     );
     if (!mounted) return;
-    if (result is (DateTime, bool, int)) {
-      final (at, sound, repeatDays) = result;
+    if (result is (DateTime, bool, int, int)) {
+      final (at, sound, repeatDays, repeatHours) = result;
       try {
         await _repo.setReminder(
           note.id,
           at,
           silent: !sound,
           repeatDays: repeatDays,
+          repeatHours: repeatHours,
         );
       } catch (_) {
         if (!mounted) return;
@@ -351,7 +496,9 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
       }
       await _reload();
       if (!mounted) return;
-      final repeat = repeatLabel(repeatDays);
+      final repeat = repeatHours > 0
+          ? repeatHoursLabel(repeatHours)
+          : repeatLabel(repeatDays);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -525,20 +672,42 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: _searching
-            ? TextField(
-                controller: _searchController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'Search notes',
-                  border: InputBorder.none,
-                ),
-                onChanged: (_) => setState(() {}),
+        leading: _selecting
+            ? IconButton(
+                tooltip: 'Exit selection',
+                onPressed: _exitSelectMode,
+                icon: const Icon(Icons.close),
               )
-            : _notes.isEmpty
-                ? const Text('JotLock')
-                : Text('JotLock (${_displayNotes.length})'),
-        actions: _searching
+            : null,
+        title: _selecting
+            ? Text('${_selectedIds.length} selected')
+            : _searching
+                ? TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Search notes',
+                      border: InputBorder.none,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  )
+                : _notes.isEmpty
+                    ? const Text('JotLock')
+                    : Text('JotLock (${_displayNotes.length})'),
+        actions: _selecting
+            ? [
+                IconButton(
+                  tooltip: _allVisibleSelected ? 'Deselect all' : 'Select all',
+                  onPressed: _toggleSelectAll,
+                  icon: const Icon(Icons.select_all),
+                ),
+                IconButton(
+                  tooltip: 'Delete selected',
+                  onPressed: _deleteSelected,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ]
+            : _searching
             ? [
                 IconButton(
                   tooltip: 'Close search',
@@ -580,7 +749,7 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
               ],
       ),
       body: _buildBody(context),
-      floatingActionButton: _searching
+      floatingActionButton: _searching || _selecting
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _add(),
@@ -607,21 +776,36 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
   }
 
   Widget _buildNoteTile(BuildContext context, Note note) {
-    final tint = noteCardColor(note.colorIndex, Theme.of(context).colorScheme);
-    final outline = Theme.of(context).colorScheme.outline;
+    final scheme = Theme.of(context).colorScheme;
+    final tint = noteCardColor(note.colorIndex, scheme);
+    final outline = scheme.outline;
+    final selected = _selectedIds.contains(note.id);
     final (checked, total) = checklistProgress(note.text);
     // Subtitle: date, then optional checklist progress and reminder info.
     final subtitleParts = <String>[
       if (total > 0) '$checked/$total',
       if (note.hasReminder)
         'reminds ${_formatReminder(context, note.reminderTime)}'
-            '${_repeatSuffix(note.repeatDays)}',
+            '${_repeatSuffix(note.repeatDays, note.repeatHours)}',
     ];
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: tint,
+      color: _selecting && selected
+          ? Color.alphaBlend(
+              scheme.primary.withAlpha(46),
+              tint ?? scheme.surfaceContainerLow,
+            )
+          : tint,
       child: ListTile(
-        leading: note.pinned ? const Icon(Icons.push_pin, size: 20) : null,
+        leading: _selecting
+            ? Icon(
+                selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                size: 24,
+                color: selected ? scheme.primary : outline,
+              )
+            : note.pinned
+                ? const Icon(Icons.push_pin, size: 20)
+                : null,
         title: checklistItems(note.text).isEmpty
             ? Text(
                 note.text,
@@ -636,7 +820,9 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
               )
             : _ChecklistView(
                 note: note,
-                onToggleLine: (line) => _toggleChecklistLine(note, line),
+                onToggleLine: _selecting
+                    ? null
+                    : (line) => _toggleChecklistLine(note, line),
               ),
         subtitle: subtitleParts.isEmpty
             ? Text(
@@ -661,9 +847,13 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
                   ),
                 ],
               ),
-        onTap: () => _edit(note),
-        onLongPress: () => _showNoteActions(note),
-        trailing: Row(
+        onTap: _selecting ? () => _toggleSelect(note) : () => _edit(note),
+        onLongPress: _selecting
+            ? () => _toggleSelect(note)
+            : () => _showNoteActions(note),
+        trailing: _selecting
+            ? null
+            : Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
@@ -713,8 +903,10 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
   }
 
   /// ' · daily', ' · every 3 days' — subtitle suffix for recurring notes.
-  String _repeatSuffix(int repeatDays) {
-    final label = repeatLabel(repeatDays);
+  String _repeatSuffix(int repeatDays, int repeatHours) {
+    final label = repeatHours > 0
+        ? repeatHoursLabel(repeatHours)
+        : repeatLabel(repeatDays);
     return label.isEmpty ? '' : ' · $label';
   }
 
@@ -761,7 +953,10 @@ class _ChecklistView extends StatelessWidget {
   const _ChecklistView({required this.note, required this.onToggleLine});
 
   final Note note;
-  final void Function(int lineIndex) onToggleLine;
+
+  /// Null while multi-select is active: checklist rows stand down so row
+  /// taps fall through to the tile's selection toggle.
+  final void Function(int lineIndex)? onToggleLine;
 
   static const int _maxRows = 8;
 
@@ -809,7 +1004,9 @@ class _ChecklistView extends StatelessWidget {
                 value: item.checked,
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                onChanged: (_) => onToggleLine(i),
+                onChanged: onToggleLine == null
+                    ? null
+                    : (_) => onToggleLine!(i),
               ),
             ),
             Expanded(
@@ -845,64 +1042,17 @@ class _ChecklistView extends StatelessWidget {
 }
 
 Future<String?> _showEditor(BuildContext context, {String? initial}) {
-  return showDialog<String>(
-    context: context,
-    builder: (context) => _NoteEditorDialog(initialText: initial),
+  return Navigator.push<String>(
+    context,
+    MaterialPageRoute<String>(
+      builder: (context) => NoteEditorPage(initialText: initial),
+    ),
   );
 }
 
-class _NoteEditorDialog extends StatefulWidget {
-  const _NoteEditorDialog({this.initialText});
-  final String? initialText;
-
-  @override
-  State<_NoteEditorDialog> createState() => _NoteEditorDialogState();
-}
-
-class _NoteEditorDialogState extends State<_NoteEditorDialog> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.initialText ?? '');
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    Navigator.pop(context, text);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.initialText == null ? 'New note' : 'Edit note'),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLines: null,
-        maxLength: 4000,
-        decoration: const InputDecoration(
-          border: OutlineInputBorder(),
-          hintText: 'Note text',
-        ),
-        onSubmitted: (_) => _save(),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(onPressed: _save, child: const Text('Save')),
-      ],
-    );
-  }
-}
-
 /// Reminder picker: quick presets, repeat selection, plus a custom date &
-/// time. Pops with a `(DateTime, bool playSound, int repeatDays)` record to
+/// time. Pops with a
+/// `(DateTime, bool playSound, int repeatDays, int repeatHours)` record to
 /// set the reminder, [_ReminderPickerDialog.remove] to clear an existing
 /// one, or null to dismiss.
 class _ReminderPickerDialog extends StatefulWidget {
@@ -910,10 +1060,15 @@ class _ReminderPickerDialog extends StatefulWidget {
     this.initial,
     this.initialSilent = false,
     this.initialRepeatDays = 0,
+    this.initialRepeatHours = 0,
   });
   final DateTime? initial;
   final bool initialSilent;
   final int initialRepeatDays;
+
+  /// Hourly recurrence carried separately from [initialRepeatDays]; the
+  /// two are mutually exclusive (one of the two is always 0).
+  final int initialRepeatHours;
 
   /// Sentinel returned to clear the reminder.
   static const String remove = 'remove';
@@ -948,8 +1103,13 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
     super.initState();
     _selected = widget.initial;
     _playSound = !(widget.initialSilent);
+    final hours = widget.initialRepeatHours;
     final days = widget.initialRepeatDays;
-    if (days == 1) {
+    if (hours > 0) {
+      _repeat = 'custom';
+      _customCount.text = '$hours';
+      _customUnit = 'hours';
+    } else if (days == 1) {
       _repeat = 'daily';
     } else if (days == 7) {
       _repeat = 'weekly';
@@ -967,18 +1127,27 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
     super.dispose();
   }
 
-  int get _repeatDaysValue {
+  /// (repeatDays, repeatHours) from the current repeat selection — exactly
+  /// one of the two is non-zero (0, 0 = one-shot). Hours clamp to a day's
+  /// worth; longer intervals belong in days.
+  (int, int) get _repeatValue {
     switch (_repeat) {
       case 'daily':
-        return 1;
+        return (1, 0);
       case 'weekly':
-        return 7;
+        return (7, 0);
       case 'custom':
         final count = int.tryParse(_customCount.text.trim()) ?? 1;
-        final unit = _customUnit == 'weeks' ? 7 : 1;
-        return (count.clamp(1, 365) * unit).clamp(1, 365);
+        switch (_customUnit) {
+          case 'hours':
+            return (0, count.clamp(1, 24));
+          case 'weeks':
+            return ((count.clamp(1, 365) * 7).clamp(1, 365), 0);
+          default:
+            return (count.clamp(1, 365), 0);
+        }
       default:
-        return 0;
+        return (0, 0);
     }
   }
 
@@ -1083,6 +1252,7 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
                   Expanded(
                     child: SegmentedButton<String>(
                       segments: const [
+                        ButtonSegment(value: 'hours', label: Text('Hours')),
                         ButtonSegment(value: 'days', label: Text('Days')),
                         ButtonSegment(value: 'weeks', label: Text('Weeks')),
                       ],
@@ -1131,10 +1301,13 @@ class _ReminderPickerDialogState extends State<_ReminderPickerDialog> {
         FilledButton(
           onPressed: _selected == null
               ? null
-              : () => Navigator.pop(
+              : () {
+                  final (days, hours) = _repeatValue;
+                  Navigator.pop(
                     context,
-                    (_selected!, _playSound, _repeatDaysValue),
-                  ),
+                    (_selected!, _playSound, days, hours),
+                  );
+                },
           child: const Text('Set reminder'),
         ),
       ],

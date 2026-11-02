@@ -28,7 +28,7 @@ class QuickNoteReceiver : BroadcastReceiver() {
             ?.trim()
             .orEmpty()
         if (text.isNotEmpty()) {
-            NoteStore.addNote(context, text.take(MAX_NOTE_LENGTH))
+            NoteStore.addNote(context, text.take(NoteStore.MAX_NOTE_LENGTH))
             Toast.makeText(context, "Note saved ✓", Toast.LENGTH_SHORT).show()
         }
 
@@ -39,9 +39,5 @@ class QuickNoteReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_INLINE_SAVE = "com.ryfire.jotlock.ACTION_INLINE_SAVE"
         const val EXTRA_INLINE_TEXT = "inline_note_text"
-
-        // Matches the Flutter editor's maxLength; keeps the documented
-        // 4,000-character cap true for every capture path.
-        const val MAX_NOTE_LENGTH = 4000
     }
 }

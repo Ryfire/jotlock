@@ -40,14 +40,17 @@ Future<bool> deleteNote(String id) async =>
 
   /// Sets (or replaces) the reminder on a note. Native side schedules an
   /// exact AlarmManager alarm that posts a notification; when [silent] it
-  /// fires without sound (banner only). [repeatDays] > 0 makes the reminder
-  /// recurring — the native receiver advances and re-arms it on every fire
-  /// (1 = daily, 7 = weekly, N = every N days).
+  /// fires without sound (banner only). A reminder repeats either by days
+  /// ([repeatDays] > 0: 1 = daily, 7 = weekly, N = every N days) or by
+  /// hours ([repeatHours] > 0: every N hours) — the native receiver
+  /// advances and re-arms it on every fire. The two are mutually
+  /// exclusive; the store keeps whichever is set.
   Future<void> setReminder(
     String id,
     DateTime at, {
     bool silent = false,
     int repeatDays = 0,
+    int repeatHours = 0,
   }) =>
       _channel.invokeMethod(
         'setReminder',
@@ -56,6 +59,7 @@ Future<bool> deleteNote(String id) async =>
           'atMillis': at.millisecondsSinceEpoch,
           'silent': silent,
           'repeatDays': repeatDays,
+          'repeatHours': repeatHours,
         },
       );
 

@@ -141,6 +141,38 @@ void main() {
     expect(repeatLabel(14), 'every 14 days');
   });
 
+  test('repeatHoursLabel: hourly presets and zero', () {
+    expect(repeatHoursLabel(0), '');
+    expect(repeatHoursLabel(1), 'hourly');
+    expect(repeatHoursLabel(6), 'every 6 hours');
+    expect(repeatHoursLabel(24), 'every 24 hours');
+  });
+
+  test('Note: repeatHours round-trips and isRecurring covers hourly', () {
+    final hourly = Note.fromMap({
+      'id': '12',
+      'text': 'water the plants',
+      'createdAt': 0,
+      'reminderAt': 1898841600000,
+      'repeatHours': 6,
+    });
+    expect(hourly.repeatHours, 6);
+    expect(hourly.isRecurring, isTrue);
+    expect(hourly.toMap()['repeatHours'], 6);
+
+    // Absent key maps to zero and emits no key (legacy notes and backups).
+    final withoutHours = Note.fromMap({
+      'id': '13',
+      'text': 'legacy',
+      'createdAt': 0,
+      'reminderAt': 1898841600000,
+      'repeatDays': 3,
+    });
+    expect(withoutHours.repeatHours, 0);
+    expect(withoutHours.toMap().containsKey('repeatHours'), isFalse);
+    expect(withoutHours.toMap()['repeatDays'], 3);
+  });
+
   test('Note: repeatDays, reminder fields and toMap round-trip', () {
     final note = Note.fromMap({
       'id': '9',

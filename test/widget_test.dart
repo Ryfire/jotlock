@@ -120,6 +120,101 @@ void main() {
     expect(find.text('Hello from the lock screen'), findsOneWidget);
   });
 
+  testWidgets('hourly recurring reminder shows an every-N-hours subtitle',
+      (tester) async {
+    mockNotesChannels(initialNotes: [
+      {
+        'id': '9',
+        'text': 'Stretch',
+        'createdAt': 0,
+        'reminderAt': DateTime.now()
+            .add(const Duration(days: 30))
+            .millisecondsSinceEpoch,
+        'repeatHours': 6,
+      },
+    ]);
+    await tester.pumpWidget(const LockNotesApp());
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('every 6 hours'), findsOneWidget);
+  });
+
+  testWidgets('editor is a full-screen page; save persists trimmed text',
+      (tester) async {
+    final captured = mockNotesChannels();
+    await tester.pumpWidget(const LockNotesApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Hello from the lock screen'));
+    await tester.pumpAndSettle();
+
+    // Full-screen page with its own app bar title.
+    expect(find.text('Edit note'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '  Edited on the page ');
+    await tester.tap(find.byKey(const Key('editor-save')));
+    await tester.pumpAndSettle();
+
+    expect(captured.updatedTexts, ['Edited on the page']);
+    expect(find.text('Edited on the page'), findsOneWidget);
+  });
+
+  testWidgets('editor back with unsaved edits asks before discarding',
+      (tester) async {
+    final captured = mockNotesChannels();
+    await tester.pumpWidget(const LockNotesApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Hello from the lock screen'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Changed my mind');
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Discard changes?'), findsOneWidget);
+
+    // Keep editing: the editor stays up and nothing is saved.
+    await tester.tap(find.text('Keep editing'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit note'), findsOneWidget);
+    expect(captured.updatedTexts, isEmpty);
+
+    // Back again, then Discard: the original text survives untouched.
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit note'), findsNothing);
+    expect(captured.updatedTexts, isEmpty);
+    expect(find.text('Hello from the lock screen'), findsOneWidget);
+  });
+
+  testWidgets('editor save stays disabled while the text is empty',
+      (tester) async {
+    final captured = mockNotesChannels();
+    await tester.pumpWidget(const LockNotesApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Hello from the lock screen'));
+    await tester.pumpAndSettle();
+
+    // Clearing the prefilled text disables save.
+    await tester.enterText(find.byType(TextField), '');
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<IconButton>(find.byKey(const Key('editor-save'))).onPressed,
+      isNull,
+    );
+
+    // And typing anything re-enables it.
+    await tester.enterText(find.byType(TextField), 'something');
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<IconButton>(find.byKey(const Key('editor-save'))).onPressed,
+      isNotNull,
+    );
+    expect(captured.updatedTexts, isEmpty);
+  });
+
   testWidgets('title drops the count when there are no notes',
       (tester) async {
     mockNotesChannels(initialNotes: []);
@@ -137,12 +232,15 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.delete_outline));
     await tester.pumpAndSettle();
-    expect(find.text('Note deleted'), findsOneWidget);
+    expect(find.text('Delete note?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+    expect(find.text('Deleted 1 note'), findsOneWidget);
     expect(find.text('Hello from the lock screen'), findsNothing);
 
     await tester.tap(find.text('Undo'));
     await tester.pumpAndSettle();
-    expect(find.text('Note restored'), findsOneWidget);
+    expect(find.text('Restored 1 note'), findsOneWidget);
     expect(find.text('Hello from the lock screen'), findsOneWidget);
 
     // The restore went through the import path with the original note.
@@ -153,6 +251,61 @@ void main() {
             .single as Map<String, dynamic>;
     expect(restored['id'], '1');
     expect(restored['text'], 'Hello from the lock screen');
+  });
+
+  testWidgets('delete asks for confirmation; cancel keeps the note',
+      (tester) async {
+    mockNotesChannels();
+    await tester.pumpWidget(const LockNotesApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete note?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hello from the lock screen'), findsOneWidget);
+  });
+
+  testWidgets('select mode bulk-deletes with a count confirm and combined undo',
+      (tester) async {
+    mockNotesChannels(initialNotes: [
+      {'id': '1', 'text': 'First note', 'createdAt': 0},
+      {'id': '2', 'text': 'Second note', 'createdAt': 1},
+    ]);
+    await tester.pumpWidget(const LockNotesApp());
+    await tester.pumpAndSettle();
+
+    // Long-press opens the menu; Select starts selection with that note.
+    await tester.longPress(find.text('First note'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Select'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 selected'), findsOneWidget);
+
+    // Tapping another note adds it to the selection.
+    await tester.tap(find.text('Second note'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 selected'), findsOneWidget);
+
+    // The app-bar trash asks with the count before deleting.
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete 2 notes?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Deleted 2 notes'), findsOneWidget);
+    expect(find.text('First note'), findsNothing);
+    expect(find.text('Second note'), findsNothing);
+
+    // One undo restores both.
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Restored 2 notes'), findsOneWidget);
+    expect(find.text('First note'), findsOneWidget);
+    expect(find.text('Second note'), findsOneWidget);
   });
 
   testWidgets('trailing checkbox marks done, strikes text, clears reminder',
@@ -215,6 +368,8 @@ void main() {
     await tester.tap(find.byType(Checkbox)); // mark done
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.delete_outline)); // delete
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete')); // confirm
     await tester.pumpAndSettle();
     await tester.tap(find.text('Undo')); // restore
     await tester.pumpAndSettle();

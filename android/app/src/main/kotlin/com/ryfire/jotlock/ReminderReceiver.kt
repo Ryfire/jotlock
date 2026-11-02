@@ -13,9 +13,10 @@ import androidx.core.app.NotificationCompat
  * with its current text; a deleted note is a silent no-op).
  *
  * One-shot reminders clear their stored reminderAt here so nothing
- * re-fires. Recurring ones (repeatDays > 0) keep the card identical but
- * advance reminderAt to the next occurrence, re-arm the alarm, and let
- * missed periods collapse into this single card instead of stacking up.
+ * re-fires. Recurring ones (repeatDays > 0 or repeatHours > 0) keep the
+ * card identical but advance reminderAt to the next occurrence, re-arm
+ * the alarm, and let missed periods collapse into this single card
+ * instead of stacking up.
  *
  * Cards share a group key with an auto summary so several reminders firing
  * the same day collapse into one stacked shade entry instead of filling it.
@@ -65,16 +66,21 @@ class ReminderReceiver : BroadcastReceiver() {
                 return
             }
             val repeatDays = note.optInt("repeatDays", 0)
-            if (repeatDays > 0) {
+            val repeatHours = note.optInt("repeatHours", 0)
+            if (repeatDays > 0 || repeatHours > 0) {
                 // Recurring: show this occurrence's card, then advance to
                 // the first future occurrence. Missed periods collapse into
-                // one card rather than one notification per missed day.
+                // one card rather than one notification per missed day/hour.
                 val dayMs = 24L * 60 * 60 * 1000
+                val hourMs = 60L * 60 * 1000
+                val intervalMs =
+                    if (repeatHours > 0) repeatHours * hourMs
+                    else repeatDays * dayMs
                 val now = System.currentTimeMillis()
                 var next = note.optLong("reminderAt", 0L)
                 if (next <= 0L) next = now
-                while (next <= now) next += repeatDays * dayMs
-                NoteStore.setReminderAt(context, id, next, silent, repeatDays)
+                while (next <= now) next += intervalMs
+                NoteStore.setReminderAt(context, id, next, silent, repeatDays, repeatHours)
                 ReminderScheduler.schedule(context, id, next)
             } else {
                 // One-shot: drop the stored reminder.

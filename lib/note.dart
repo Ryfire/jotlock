@@ -21,6 +21,11 @@ class Note {
   /// Mirrors the native `repeatDays` field in NoteStore.
   final int repeatDays;
 
+  /// Hourly recurrence interval in hours: 0 = not hourly. Mutually
+  /// exclusive with [repeatDays] — setting one clears the other. Mirrors
+  /// the native `repeatHours` field in NoteStore.
+  final int repeatHours;
+
   /// Marked-done flag (struck through in the list; mirrors the native
   /// `done` field in NoteStore). Independent of checklist item state.
   final bool done;
@@ -34,13 +39,14 @@ class Note {
     this.reminderAt = 0,
     this.reminderSilent = false,
     this.repeatDays = 0,
+    this.repeatHours = 0,
     this.done = false,
   });
 
   bool get hasReminder => reminderAt > 0;
 
-  /// True when the reminder repeats (see [repeatDays]).
-  bool get isRecurring => repeatDays > 0;
+  /// True when the reminder repeats (see [repeatDays] / [repeatHours]).
+  bool get isRecurring => repeatDays > 0 || repeatHours > 0;
 
   /// The reminder target as a DateTime; only meaningful when [hasReminder].
   DateTime get reminderTime =>
@@ -71,6 +77,7 @@ class Note {
         reminderAt: (map['reminderAt'] as num?)?.toInt() ?? 0,
         reminderSilent: map['reminderSilent'] as bool? ?? false,
         repeatDays: (map['repeatDays'] as num?)?.toInt() ?? 0,
+        repeatHours: (map['repeatHours'] as num?)?.toInt() ?? 0,
         done: map['done'] as bool? ?? false,
       );
 
@@ -87,6 +94,7 @@ class Note {
           'reminderAt': reminderAt,
           'reminderSilent': reminderSilent,
           if (isRecurring) 'repeatDays': repeatDays,
+          if (repeatHours > 0) 'repeatHours': repeatHours,
         },
         if (done) 'done': true,
       };
@@ -180,6 +188,21 @@ String repeatLabel(int repeatDays) {
       return 'every $repeatDays days';
   }
 }
+
+/// Human label for an hourly repeat interval ('' when not hourly). Kept
+/// separate from [repeatLabel] because hours and days live in different
+/// native fields — a reminder repeats either by days or by hours, never
+/// both.
+String repeatHoursLabel(int repeatHours) {
+  if (repeatHours <= 0) return '';
+  if (repeatHours == 1) return 'hourly';
+  return 'every $repeatHours hours';
+}
+
+/// Hard character cap for a note's text, shared by the editor's maxLength,
+/// the native capture paths and the NoteStore clamp. The README's
+/// documented cap must match this.
+const int maxNoteLength = 4000;
 
 /// Display ordering helper: pinned notes first, then newest first, filtered
 /// by a case-insensitive `contains` on the text when [query] is non-empty.

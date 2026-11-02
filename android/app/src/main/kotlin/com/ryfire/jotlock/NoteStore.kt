@@ -15,6 +15,14 @@ object NoteStore {
     private const val KEY_NOTES = "notes"
     private const val MAX_NOTES = 500
 
+    /**
+     * Hard cap on a note's text, matching the Flutter editor's maxLength and
+     * the documented 4,000-character cap in the README. Clamped on every
+     * write path (capture screens, inline replies, edits) so no capture
+     * route can produce an over-cap note.
+     */
+    const val MAX_NOTE_LENGTH = 4000
+
     fun getNotes(context: Context): JSONArray {
         val raw = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
             .getString(KEY_NOTES, "[]") ?: "[]"
@@ -40,6 +48,7 @@ object NoteStore {
                     "reminderAt" to note.optLong("reminderAt", 0L),
                     "reminderSilent" to note.optBoolean("reminderSilent", false),
                     "repeatDays" to note.optInt("repeatDays", 0),
+                    "repeatHours" to note.optInt("repeatHours", 0),
                     "done" to note.optBoolean("done", false),
                 )
             )
@@ -61,7 +70,7 @@ object NoteStore {
         val existing = getNotes(context)
         val note = JSONObject()
             .put("id", System.currentTimeMillis().toString())
-            .put("text", text)
+            .put("text", text.take(MAX_NOTE_LENGTH))
             .put("createdAt", System.currentTimeMillis())
             .put("pinned", false)
         val out = JSONArray().put(note)
@@ -74,7 +83,7 @@ object NoteStore {
         for (i in 0 until notes.length()) {
             val note = notes.optJSONObject(i) ?: continue
             if (note.optString("id") == id) {
-                note.put("text", text)
+                note.put("text", text.take(MAX_NOTE_LENGTH))
                 return saveNotes(context, notes)
             }
         }
@@ -147,7 +156,9 @@ object NoteStore {
 
     /**
      * Stores the reminder target time on the note. A value <= 0 removes the
-     * fields (no reminder). [repeatDays] > 0 marks the reminder recurring —
+     * fields (no reminder). A reminder repeats either by days
+     * ([repeatDays] > 0) or by hours ([repeatHours] > 0) — the two are
+     * mutually exclusive and this keeps the store that way — and
      * ReminderReceiver advances reminderAt on each fire and re-arms.
      * Scheduling/canceling the actual alarm lives in ReminderScheduler —
      * this only persists the state. [silent] chooses between the sounded
@@ -159,6 +170,7 @@ object NoteStore {
         atMillis: Long,
         silent: Boolean = false,
         repeatDays: Int = 0,
+        repeatHours: Int = 0,
     ): Boolean {
         val notes = getNotes(context)
         for (i in 0 until notes.length()) {
@@ -167,15 +179,21 @@ object NoteStore {
                 if (atMillis > 0) {
                     note.put("reminderAt", atMillis)
                     note.put("reminderSilent", silent)
-                    if (repeatDays > 0) {
+                    if (repeatHours > 0) {
+                        note.put("repeatHours", repeatHours)
+                        note.remove("repeatDays")
+                    } else if (repeatDays > 0) {
                         note.put("repeatDays", repeatDays)
+                        note.remove("repeatHours")
                     } else {
                         note.remove("repeatDays")
+                        note.remove("repeatHours")
                     }
                 } else {
                     note.remove("reminderAt")
                     note.remove("reminderSilent")
                     note.remove("repeatDays")
+                    note.remove("repeatHours")
                 }
                 return saveNotes(context, notes)
             }
@@ -235,6 +253,8 @@ object NoteStore {
                 note.put("reminderSilent", item.optBoolean("reminderSilent", false))
                 val repeat = item.optInt("repeatDays", 0)
                 if (repeat > 0) note.put("repeatDays", repeat)
+                val repeatHours = item.optInt("repeatHours", 0)
+                if (repeatHours > 0) note.put("repeatHours", repeatHours)
             }
             notes.put(note)
             added++

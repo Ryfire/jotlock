@@ -34,7 +34,7 @@ into your notes.
 - **Private by design** — no accounts, no cloud, no internet permission. Notes never leave the device.
 - **Free and open source** — inspect every line.
 
-Latest release: **v1.4.0** · Requires Android 7.0+
+Latest release: **v1.5.0** · Requires Android 7.0+
 
 ---
 
@@ -95,9 +95,9 @@ any custom date and time. When it fires you get a heads-up with your sound
 ### …and repeat on your schedule
 
 A reminder doesn't have to be one-shot: set it to **Every day**, **Every week**,
-or a custom interval — every 2 days, every 3 weeks, whatever the chore needs.
-Repeating reminders re-arm themselves each time they fire and show up in the
-note's subtitle (`· every 3 days`, `· weekly`).
+or a custom interval — every 6 hours, every 2 days, every 3 weeks, whatever
+the chore needs. Repeating reminders re-arm themselves each time they fire
+and show up in the note's subtitle (`· every 3 days`, `· weekly`).
 
 <p align="center">
   <img src="screenshots/20_reminder_picker_dark.png" alt="The reminder picker with presets, repeat options and sound toggle" width="270">
@@ -264,7 +264,7 @@ or **Go home**, or just let the screen turn off:
 Plain lines in the editor, tappable checkboxes on the card:
 
 <p align="center">
-  <img src="screenshots/04_editor_checklist_raw.png" alt="Edit note dialog with raw [ ]/[x] checklist lines; the same note renders as tappable checkboxes on the card" width="380">
+  <img src="screenshots/077_editor_checklist_raw.png" alt="Editor with raw [ ]/[x] checklist lines; the same note renders as tappable checkboxes on the card" width="380">
 </p>
 
 ### Reminders
@@ -282,8 +282,9 @@ The reminder sound itself (what "play sound" uses) is set in Settings →
 
 ### In the app
 
-- **Tap a note** to edit · **Tap a checkbox** to check it off · **Copy** / **Delete** icons on each note
-- **Long-press** for the full menu: *Edit · Pin · Copy · Remind me… · Priority color · Share · Delete*
+- **Tap a note** to edit · **Tap a checkbox** to check it off · **Copy** / **Delete** icons on each note (Delete asks before it acts — and can be undone right after)
+- **Bulk delete** — long-press a note and tap **Select**, then tap other cards to add or remove them from the selection; the app bar counts what you've picked (**Select all** grabs everything at once). The trash in the app bar deletes the whole selection after one confirmation showing the count — and a single **Undo** brings every deleted note back.
+- **Long-press** for the full menu: *Edit · Select · Pin · Copy · Remind me… · Priority color · Share · Delete*
 - **Magnifier** to search · **＋ New note** to add
 - **Info icon** — About & support: a note from the developer, ways to support the app, and the source code
 
