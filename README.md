@@ -34,7 +34,7 @@ into your notes.
 - **Private by design** — no accounts, no cloud, no internet permission. Notes never leave the device.
 - **Free and open source** — inspect every line.
 
-Latest release: **v1.6.0** · Requires Android 7.0+
+Latest release: **v1.7.0** · Requires Android 7.0+
 
 ---
 
@@ -126,6 +126,19 @@ reminder times and colors all survive the round-trip.
   <img src="screenshots/22_export_import_dark.png" alt="Export and import options in the settings sheet" width="400">
 </p>
 
+### Send a selection to Daymark
+
+Want just a few notes in [Daymark](https://github.com/Ryfire/daymark), not the
+whole library? Long-press a note and tap **Select** — selection mode opens:
+tap more notes to add them, or use the app bar's select-all toggle. Then tap
+the share icon in the app bar (**Send to Daymark**). JotLock builds a normal
+JSON backup containing only the selected notes — named
+`jotlock_selection_<today's date>.json`, renameable like any export — and
+hands it to the share sheet, where **Daymark** appears as a one-tap target.
+Tap it and Daymark imports just that selection: no file juggling, and none
+of your other notes ever leave the phone. (Daymark is optional — the file
+saves or shares anywhere else too.)
+
 ### Find anything fast
 
 The magnifier searches every note as you type — case-insensitive, across titles,
@@ -194,6 +207,7 @@ all appreciated:
 | **Search** | Case-insensitive search over all notes, including checklist lines. |
 | **Copy / share** | Copy any note to the clipboard, or share it out. JotLock also accepts text sent **in** from the share sheet and the text-selection menu. |
 | **Export / import** | JSON backup (share it anywhere) and a readable text export — both ask for a file name first. |
+| **Send to Daymark** | Select one or more notes (long-press → **Select**, tap to add) and tap the share icon in the app bar: a JSON backup of just the selection goes to the share sheet, where [Daymark](https://github.com/Ryfire/daymark) is a one-tap import target. |
 | **Notification toggle** | Don't want the persistent card? Turn it off in settings; it returns on next launch. |
 | **About & support** | The info icon in the app bar opens a developer note, ways to support the app, and the GitHub source. |
 | **Polish** | Material 3, light/dark, adaptive + themed icons, undo snackbar after deletes. |

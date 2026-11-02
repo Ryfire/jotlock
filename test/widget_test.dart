@@ -308,6 +308,75 @@ void main() {
     expect(find.text('Second note'), findsOneWidget);
   });
 
+  testWidgets('Send to Daymark arms only while notes are selected',
+      (tester) async {
+    mockNotesChannels(initialNotes: [
+      {'id': '1', 'text': 'First note', 'createdAt': 0},
+      {'id': '2', 'text': 'Second note', 'createdAt': 1},
+    ]);
+    await tester.pumpWidget(const LockNotesApp());
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.text('First note'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Select'));
+    await tester.pumpAndSettle();
+
+    IconButton sendButton() => tester.widget<IconButton>(
+          find
+              .ancestor(
+                of: find.byIcon(Icons.ios_share),
+                matching: find.byType(IconButton),
+              )
+              .first,
+        );
+
+    // Selection starts with one note, so the action is armed.
+    expect(sendButton().onPressed, isNotNull);
+
+    // Select-all first fills the selection (Second note joins) — still armed.
+    await tester.tap(find.byIcon(Icons.select_all));
+    await tester.pumpAndSettle();
+    expect(sendButton().onPressed, isNotNull);
+
+    // The second tap toggles to deselect-all: the action stands down.
+    await tester.tap(find.byIcon(Icons.select_all));
+    await tester.pumpAndSettle();
+    expect(sendButton().onPressed, isNull);
+
+    // Re-selecting arms it again.
+    await tester.tap(find.byIcon(Icons.select_all));
+    await tester.pumpAndSettle();
+    expect(sendButton().onPressed, isNotNull);
+  });
+
+  testWidgets('Send to Daymark asks for a file name; cancel keeps selection',
+      (tester) async {
+    mockNotesChannels(initialNotes: [
+      {'id': '1', 'text': 'First note', 'createdAt': 0},
+    ]);
+    await tester.pumpWidget(const LockNotesApp());
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.text('First note'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Select'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Send to Daymark'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Send to Daymark (JSON)'), findsOneWidget);
+    expect(find.textContaining('jotlock_selection_'), findsOneWidget);
+
+    // Cancel leaves the notes and the selection untouched.
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Send to Daymark (JSON)'), findsNothing);
+    expect(find.text('1 selected'), findsOneWidget);
+    expect(find.text('First note'), findsOneWidget);
+  });
+
   testWidgets('trailing checkbox marks done, strikes text, clears reminder',
       (tester) async {
     final captured = mockNotesChannels(

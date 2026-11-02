@@ -648,6 +648,41 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
     }
   }
 
+  /// Exports only the selected notes as a JSON backup and hands it to the
+  /// share sheet, where daymark is a registered application/json receiver —
+  /// tapping Daymark there imports the selection directly. The selection is
+  /// kept afterward (the notes may still be wanted for another action).
+  Future<void> _exportSelectedNotes() async {
+    try {
+      final stamp = DateTime.now().toIso8601String().substring(0, 10);
+      final name = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => _ExportNameDialog(
+          title: 'Send to Daymark (JSON)',
+          defaultName: 'jotlock_selection_$stamp',
+          extension: '.json',
+        ),
+      );
+      if (name == null || !mounted) return;
+      final json =
+          filterExportJson(await _repo.getExportJson(), _selectedIds);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}${Platform.pathSeparator}$name.json');
+      await file.writeAsString(json);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/json')],
+          text: 'JotLock selection ($stamp)',
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Export failed')),
+      );
+    }
+  }
+
   Future<void> _importNotes() async {
     final files = await FilePicker.pickFiles(
       type: FileType.custom,
@@ -714,6 +749,12 @@ class _NotesPageState extends State<NotesPage> with WidgetsBindingObserver {
                   tooltip: _allVisibleSelected ? 'Deselect all' : 'Select all',
                   onPressed: _toggleSelectAll,
                   icon: const Icon(Icons.select_all),
+                ),
+                IconButton(
+                  tooltip: 'Send to Daymark',
+                  onPressed:
+                      _selectedIds.isEmpty ? null : _exportSelectedNotes,
+                  icon: const Icon(Icons.ios_share),
                 ),
                 IconButton(
                   tooltip: 'Delete selected',
@@ -1358,6 +1399,19 @@ String sanitizeExportFileName(String raw, String fallback) {
   }
   name = name.replaceAll(RegExp(r'[ .]+$'), '');
   return name.isEmpty ? fallback : name;
+}
+
+/// Filters a full JotLock backup JSON down to just the notes whose id is
+/// in [ids], preserving the backup's order. Unknown ids are ignored, so a
+/// selection that went stale (note deleted elsewhere) exports what still
+/// exists. The result is a standard jotlock backup file — daymark imports
+/// it unchanged. Raw maps round-trip untouched; no Note re-shaping.
+String filterExportJson(String json, Set<String> ids) {
+  final notes = (jsonDecode(json) as List<dynamic>)
+      .whereType<Map>()
+      .where((m) => ids.contains(m['id']))
+      .toList();
+  return jsonEncode(notes);
 }
 
 /// Live counterpart of [sanitizeExportFileName] for the text field: strips
