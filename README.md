@@ -247,11 +247,13 @@ universal one, so updates always install cleanly over what you started with.
 3. Depending on your *After saving* setting the phone locks instantly, goes home,
    or stays put — the next wake is always the lock screen, never the app.
 
-With *Stay on the confirmation*, saving hands you the choice — **Lock screen**
-or **Go home**, or just let the screen turn off:
+The card waits on your lock screen; saving lands on the confirmation — with
+*Stay on the confirmation* set, it hands you the choice (**Lock screen** /
+**Go home**), or you just let the screen turn off:
 
 <p align="center">
-  <img src="screenshots/24_note_saved_confirmation.png" alt="The Note saved confirmation screen with Lock screen and Go home buttons" width="380">
+  <img src="screenshots/18_lockscreen_quicknote.png" alt="The Quick note card on the lock screen with a Write note button" width="270">
+  <img src="screenshots/24_note_saved_confirmation.png" alt="The Note saved confirmation screen with Lock screen and Go home buttons" width="270">
 </p>
 
 > **Why the PIN prompt?** If your phone uses a PIN/fingerprint, Android asks for a
